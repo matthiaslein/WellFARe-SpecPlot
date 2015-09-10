@@ -1,5 +1,75 @@
 import sys
 import os.path
+
+def timestamp(s):
+  print (s + time.strftime("%Y/%m/%d %X"))
+
+# ASCII FONTS from: http://patorjk.com/software/taag/
+# Font = "Small"
+def ProgramHeader():
+  print ("#################################################################")
+  print ("Wellington Fast Assessment of Reactions Spectroscopical Data Plot")
+  print ("__      __   _ _ ___ _   ___     ___              ___ _     _   ")
+  print ("\ \    / /__| | | __/_\ | _ \___/ __|_ __  ___ __| _ \ |___| |_ ")
+  print (" \ \/\/ / -_) | | _/ _ \|   / -_)__ \ '_ \/ -_) _|  _/ / _ \  _|")
+  print ("  \_/\_/\___|_|_|_/_/ \_\_|_\___|___/ .__/\___\__|_| |_\___/\__|")
+  print ("                                    |_|                         ")
+  print ("                                                    Version 0.01")
+  print ("      WellFAReSpecPlot Copyright (C) 2015 Matthias Lein         ")
+  print ("       This program comes with ABSOLUTELY NO WARRANTY           ")
+  print ("        This is free software, and you are welcome to           ")
+  print ("          redistribute it under certain conditions.             ")
+  timestamp('Program started at: ')
+  print ("#################################################################\n")
+
+def ProgramFooter():
+  print ("\n######################################################")
+  print (" ___                                ___         _     ")
+  print (" | _ \_ _ ___  __ _ _ _ __ _ _ __   | __|_ _  __| |___")
+  print (" |  _/ '_/ _ \/ _` | '_/ _` | '  \  | _|| ' \/ _` (_-<")
+  print (" |_| |_| \___/\__, |_| \__,_|_|_|_| |___|_||_\__,_/__/")
+  print ("              |___/                                   ")
+  timestamp('Program terminated at: ')
+  print ("#######################################################")
+
+def ProgramAbort():
+  print ("\n#################################################")
+  print ("  ___                  _             _          _ ")
+  print (" | _ \_  _ _ _    __ _| |__  ___ _ _| |_ ___ __| |")
+  print (" |   / || | ' \  / _` | '_ \/ _ \ '_|  _/ -_) _` |")
+  print (" |_|_\\_,_|_||_| \__,_|_.__/\___/_|  \__\___\__,_|")
+  timestamp('Program aborted at: ')
+  print ("####################################################")
+  sys.exit()
+  return
+
+def ProgramWarning(warntext=''):
+  print ("\n###################################")
+  print (" __      __             _           ")
+  print (" \ \    / /_ _ _ _ _ _ (_)_ _  __ _ ")
+  print ("  \ \/\/ / _` | '_| ' \| | ' \/ _` |")
+  print ("   \_/\_/\__,_|_| |_||_|_|_||_\__, |")
+  print ("                              |___/ ")
+  timestamp('Warning time/date: ')
+  if warntext != '':
+    print ("#####################################")
+    print("# ", warntext)
+  print ("#####################################")
+  return
+
+def ProgramError(errortext=''):
+  print ("\n#####################")
+  print ("  ___                 ")
+  print (" | __|_ _ _ _ ___ _ _ ")
+  print (" | _|| '_| '_/ _ \ '_|")
+  print (" |___|_| |_| \___/_|  ")
+  timestamp('Error time/date: ')
+  if errortext != '':
+    print ("#######################")
+    print("# ", errortext)
+  print ("#######################")
+  return
+
 # Check for numpy and matplotlib, try to exit gracefully if not found
 import imp
 try:
@@ -13,25 +83,28 @@ try:
 except ImportError:
     foundplot = False
 if not foundnp:
-    print("Numpy is required. Exiting")
-    sys.exit()
+    ProgramError("Numpy is required. Exiting")
+    ProgramAbort()
 if not foundplot:
-    print("Matplotlib is required. Exiting")
-    sys.exit()
+    ProgramError("Matplotlib is required. Exiting")
+    ProgramAbort()
 import numpy as np
 import matplotlib.pyplot
 
 def extractExcitations(filename):
+  bands = []
+  oscstr = []
+  gibbsfree = 0.0
   f = open(filename,'r')
   program = "N/A"
   # Determine which QM program we're dealing with
   for line in f:
-  	if line.find("Entering Gaussian System, Link 0=g09") != -1:
-  	  program = "g09"
-  	  break
-  	elif line.find("* O   R   C   A *") != -1:
-  	  program = "orca"
-  	  break
+    if line.find("Entering Gaussian System, Link 0=g09") != -1:
+      program = "g09"
+      break
+    elif line.find("* O   R   C   A *") != -1:
+      program = "orca"
+      break
   f.close()
 
   # Excitations READING SECTION
@@ -48,8 +121,6 @@ def extractExcitations(filename):
             excit.append(readBuffer)
           elif readBuffer.find("Leave Link") != -1:
             break
-    bands = []
-    oscstr = []
     for i in excit:
       readBuffer=i.split()
       bands.append(float(readBuffer[6]))
@@ -79,8 +150,6 @@ def extractExcitations(filename):
             excit.append(readBuffer)
           else:
             break
-    bands = []
-    oscstr = []
     for i in excit:
       readBuffer=i.split()
       bands.append(float(readBuffer[2]))
@@ -88,7 +157,6 @@ def extractExcitations(filename):
     f.close()
   # Read through ORCA file, read *last* Gibbs free energy
   if program == "orca":
-    gibbsfree = 0.0
     f = open(filename,'r')
     for line in f:
       if line.find("Final Gibbs free enthalpy") != -1:
@@ -110,14 +178,17 @@ def findmax(listoflists):
     maxima.append(max(i))
   return max(maxima)
 
+# Start of the program
+ProgramHeader()
+
 # A sqrt(2) * standard deviation of 0.4 eV is 3099.6 nm. 0.1 eV is 12398.4 nm. 0.2 eV is 6199.2 nm.
 stdev = 3099.6
 # For Lorentzians, gamma is half bandwidth at half peak height (nm)
 gamma = 12.5
 
 if len(sys.argv) < 2:
-  print("Need filename(s) as command line argument!")
-  sys.exit()
+  ProgramError("Need filename(s) as command line argument!")
+  ProgramAbort()
 
 # Create empty lists for energies, bands and osc strengths
 energies = []
@@ -134,8 +205,8 @@ for i in range(1,len(sys.argv)):
     strengths.append(f)
     energies = energies + [energy]
   else:
-    print("Something wrong with the file given as command line argument!")
-    sys.exit()
+    ProgramError("Something wrong with the file given as command line argument!")
+    ProgramAbort()
 
 # Basic check that we have the same number of bands and oscillator strengths
 #if len(bands) != len(f):
@@ -185,3 +256,5 @@ matplotlib.pyplot.xlabel('$\lambda$ / nm')
 matplotlib.pyplot.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
 
 matplotlib.pyplot.show()
+
+ProgramFooter()
