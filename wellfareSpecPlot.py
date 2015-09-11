@@ -179,51 +179,6 @@ def findmax(listoflists):
     maxima.append(max(i))
   return max(maxima)
 
-# Start of the program
-ProgramHeader()
-
-# A sqrt(2) * standard deviation of 0.4 eV is 3099.6 nm. 0.1 eV is 12398.4 nm. 0.2 eV is 6199.2 nm.
-stdev = 3099.6
-# For Lorentzians, gamma is half bandwidth at half peak height (nm)
-gamma = 12.5
-
-if len(sys.argv) < 2:
-  ProgramError("Need filename(s) as command line argument!")
-  ProgramAbort()
-
-# Create empty lists for energies, bands and osc strengths
-energies = []
-bands = []
-strengths = []
-
-# Excitation energies in nm
-# Oscillator strengths (dimensionless)
-for i in range(1,len(sys.argv)):
-  if os.path.isfile(str(sys.argv[i])):
-    print("Reading from file {} now.".format(str(sys.argv[i])))
-    band, f, energy = extractExcitations(str(sys.argv[i]))
-    bands.append(band)
-    strengths.append(f)
-    energies = energies + [energy]
-  else:
-    ProgramError("Something wrong with the file given as command line argument!")
-    ProgramAbort()
-
-# Basic check that we have the same number of bands and oscillator strengths
-#if len(bands) != len(f):
-#    print('Number of bands does not match the number of oscillator strengths.')
-#    sys.exit()
-
-# Convert absolute energies into relative energies
-originalmin = min(energies)
-for i in range(0,len(energies)):
-  energies[i] = (energies[i] - originalmin)*627.5095
-
-# Determine Boltzmann factors for all components
-boltzmann = np.zeros(len(energies))
-for i in range(0,len(energies)):
-  boltzmann[i] = np.exp((-1.0*energies[i]/(298.15*0.0019872041)))
-
 # Information on producing spectral curves (Gaussian and Lorentzian) is adapted from:
 # P. J. Stephens, N. Harada, Chirality 22, 229 (2010).
 # Gaussian curves are often a better fit for UV/Vis.
@@ -237,9 +192,53 @@ def lorentzBand(x, band, strength, stdev, gamma):
     bandshape = 1.3062974e8 * (strength / (1e7/stdev)) * ((gamma**2)/((x - band)**2 + gamma**2))
     return bandshape
 
+# Start of the program
+ProgramHeader()
+
+if len(sys.argv) < 2:
+  ProgramError("Need filename(s) as command line argument!")
+  ProgramAbort()
+
+# Create empty lists for energies, bands and osc strengths
+energies = []
+bands = []
+strengths = []
+names = []
+
+# Excitation energies in nm
+# Oscillator strengths (dimensionless)
+for i in range(1,len(sys.argv)):
+  if os.path.isfile(str(sys.argv[i])):
+    print("Reading from file {} now.".format(str(sys.argv[i])))
+    band, f, energy = extractExcitations(str(sys.argv[i]))
+    names.append(str(sys.argv[i]))
+    bands.append(band)
+    strengths.append(f)
+    energies = energies + [energy]
+  else:
+    ProgramError("Something wrong with the file given as command line argument!")
+    ProgramAbort()
+
+# Convert absolute energies into relative energies
+originalmin = min(energies)
+for i in range(0,len(energies)):
+  energies[i] = (energies[i] - originalmin)*627.5095
+
+# Determine Boltzmann factors for all components
+boltzmann = np.zeros(len(energies))
+for i in range(0,len(energies)):
+  boltzmann[i] = np.exp((-1.0*energies[i]/(298.15*0.0019872041)))
+
+# Initialise a stdev array for the peak broadening
+# A sqrt(2) * standard deviation of 0.4 eV is 3099.6 nm. 0.1 eV is 12398.4 nm. 0.2 eV is 6199.2 nm.
+stdevs = np.full([len(energies),len(bands[0])], 3099.6)
+
+# For Lorentzians, gamma is half bandwidth at half peak height (nm)
+gammas = np.full([len(energies),len(bands[0])], 7.5)
+
 print("We have spectral data from {} calculations".format(len(bands)))
 for i in range(1,len(bands)+1):
-  print("Data from file no {}".format(i))
+  print("Data from file no {}: {}".format(i, names[i-1]))
   print("Relative Gibbs energy: {:.3f}".format(energies[i-1]))
   print("Boltzmann factor: {:.3f}".format(boltzmann[i-1]))
   print("Contribution: {:.1f}%".format((boltzmann[i-1]/np.sum(boltzmann))*100))
@@ -261,21 +260,39 @@ composite = 0
 for i in range(0,len(bands)):
   individual.append(0)
   for count,peak in enumerate(bands[i]):
-      thispeak = (boltzmann[i]/np.sum(boltzmann))*gaussBand(x, peak, strengths[i][count], stdev)
-#      thispeak = lorentzBand(x, peak, f[count], stdev, gamma)
+      thispeak = (boltzmann[i]/np.sum(boltzmann))*gaussBand(x, peak, strengths[i][count], stdevs[i][count])
+#      thispeak = (boltzmann[i]/np.sum(boltzmann))*lorentzBand(x, peak, strengths[i][count], stdevs[i][count], gammas[i][count])
       composite += thispeak
       individual[i] += thispeak
 
+# Find out how many structures actually contribute significantly (>1%)
+sigstruct = 0
+for i in range(0,len(bands)):
+  if (boltzmann[i]/np.sum(boltzmann)) > 0.01:
+    sigstruct += 1
 
-fig, ax = plt.subplots(nrows=len(bands)+1,sharex=True,sharey=False)
-ax[0].plot(x,composite)
 #colourmap = plt.cm.Spectral(np.linspace(0, 1, len(bands)))
 #colourmap = plt.cm.rainbow(np.linspace(0, 1, len(bands)))
-#colourmap = plt.cm.gnuplot(np.linspace(0, 1, len(bands)))
-colourmap = plt.cm.seismic(np.linspace(0, 1, len(bands)))
-for i in range(0,len(bands)):
-  ax[i+1].plot(x,individual[i],color=colourmap[i])
-  ax[0].plot(x,individual[i],color=colourmap[i])
+colourmap = plt.cm.gnuplot(np.linspace(0, 1, len(bands)))
+#colourmap = plt.cm.seismic(np.linspace(0, 1, len(bands)))
+
+# Setup for composite plot and each significantly contr. structure
+fig, ax = plt.subplots(nrows=sigstruct+1,sharex=True,sharey=False)
+ax[0].plot(x,composite)
+
+# Go through all energies in order, but index in variable "count"
+for count, i in enumerate(np.argsort(energies)):
+  if (boltzmann[i]/np.sum(boltzmann)) > 0.01:
+    ax[count+1].plot(x,individual[i],color=colourmap[i])
+    ax[count+1].text(0.8, 0.5,'{}\n Contribution: {:.1f}%'.format(names[i],(boltzmann[i]/np.sum(boltzmann))*100),
+     horizontalalignment='center',
+     verticalalignment='center',
+     transform = ax[count+1].transAxes)
+  ax[0].plot(x,individual[i],color=colourmap[i],linestyle='--')
+ax[0].text(0.8, 0.5,'All contributions',
+     horizontalalignment='center',
+     verticalalignment='center',
+     transform = ax[0].transAxes)
 plt.xlabel('$\lambda$ / nm')
 plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
 
