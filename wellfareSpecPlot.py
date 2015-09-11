@@ -8,7 +8,7 @@ def timestamp(s):
 # ASCII FONTS from: http://patorjk.com/software/taag/
 # Font = "Small"
 def ProgramHeader():
-  print ("#################################################################")
+  print ("###############################################################################")
   print ("Wellington Fast Assessment of Reactions Spectroscopical Data Plot")
   print ("__      __   _ _ ___ _   ___     ___              ___ _     _   ")
   print ("\ \    / /__| | | __/_\ | _ \___/ __|_ __  ___ __| _ \ |___| |_ ")
@@ -21,31 +21,31 @@ def ProgramHeader():
   print ("        This is free software, and you are welcome to           ")
   print ("          redistribute it under certain conditions.             ")
   timestamp('Program started at: ')
-  print ("#################################################################\n")
+  print ("###############################################################################\n")
 
 def ProgramFooter():
-  print ("\n######################################################")
+  print ("\n###############################################################################")
   print ("  ___                                ___         _    ")
   print (" | _ \_ _ ___  __ _ _ _ __ _ _ __   | __|_ _  __| |___")
   print (" |  _/ '_/ _ \/ _` | '_/ _` | '  \  | _|| ' \/ _` (_-<")
   print (" |_| |_| \___/\__, |_| \__,_|_|_|_| |___|_||_\__,_/__/")
   print ("              |___/                                   ")
   timestamp('Program terminated at: ')
-  print ("#######################################################")
+  print ("###############################################################################")
 
 def ProgramAbort():
-  print ("\n#################################################")
+  print ("\n###############################################################################")
   print ("  ___                  _             _          _ ")
   print (" | _ \_  _ _ _    __ _| |__  ___ _ _| |_ ___ __| |")
   print (" |   / || | ' \  / _` | '_ \/ _ \ '_|  _/ -_) _` |")
   print (" |_|_\\\_,_|_||_| \__,_|_.__/\___/_|  \__\___\__,_|")
   timestamp('Program aborted at: ')
-  print ("####################################################")
+  print ("###############################################################################")
   sys.exit()
   return
 
 def ProgramWarning(warntext=''):
-  print ("\n###################################")
+  print ("\n###############################################################################")
   print (" __      __             _           ")
   print (" \ \    / /_ _ _ _ _ _ (_)_ _  __ _ ")
   print ("  \ \/\/ / _` | '_| ' \| | ' \/ _` |")
@@ -53,22 +53,22 @@ def ProgramWarning(warntext=''):
   print ("                              |___/ ")
   timestamp('Warning time/date: ')
   if warntext != '':
-    print ("#####################################")
+    print ("###############################################################################")
     print("# ", warntext)
-  print ("#####################################")
+  print ("###############################################################################")
   return
 
 def ProgramError(errortext=''):
-  print ("\n#####################")
+  print ("\n###############################################################################")
   print ("  ___                 ")
   print (" | __|_ _ _ _ ___ _ _ ")
   print (" | _|| '_| '_/ _ \ '_|")
   print (" |___|_| |_| \___/_|  ")
   timestamp('Error time/date: ')
   if errortext != '':
-    print ("#######################")
+    print ("###############################################################################")
     print("# ", errortext)
-  print ("#######################")
+  print ("###############################################################################")
   return
 
 # Check for numpy and matplotlib, try to exit gracefully if not found
@@ -90,7 +90,7 @@ if not foundplot:
     ProgramError("Matplotlib is required. Exiting")
     ProgramAbort()
 import numpy as np
-import matplotlib.pyplot
+import matplotlib.pyplot as plt
 
 def extractExcitations(filename):
   bands = []
@@ -214,6 +214,16 @@ for i in range(1,len(sys.argv)):
 #    print('Number of bands does not match the number of oscillator strengths.')
 #    sys.exit()
 
+# Convert absolute energies into relative energies
+originalmin = min(energies)
+for i in range(0,len(energies)):
+  energies[i] = (energies[i] - originalmin)*627.5095
+
+# Determine Boltzmann factors for all components
+boltzmann = np.zeros(len(energies))
+for i in range(0,len(energies)):
+  boltzmann[i] = np.exp((-1.0*energies[i]/(298.15*0.0019872041)))
+
 # Information on producing spectral curves (Gaussian and Lorentzian) is adapted from:
 # P. J. Stephens, N. Harada, Chirality 22, 229 (2010).
 # Gaussian curves are often a better fit for UV/Vis.
@@ -229,8 +239,10 @@ def lorentzBand(x, band, strength, stdev, gamma):
 
 print("We have spectral data from {} calculations".format(len(bands)))
 for i in range(1,len(bands)+1):
-  print("Calculation no {}".format(i))
-  print("Gibbs energy: {}".format(energies[i-1]))
+  print("Data from file no {}".format(i))
+  print("Relative Gibbs energy: {:.3f}".format(energies[i-1]))
+  print("Boltzmann factor: {:.3f}".format(boltzmann[i-1]))
+  print("Contribution: {:.1f}%".format((boltzmann[i-1]/np.sum(boltzmann))*100))
   print("Peak positions at: {}".format(bands[i-1]))
   print("Peak intensities : {}".format(strengths[i-1]))
   print("")
@@ -244,18 +256,29 @@ print("Plot boundaries: {} nm and {} nm ({} points)".format(start, finish, point
 
 x = np.linspace(start,finish,points)
 
+individual = []
 composite = 0
 for i in range(0,len(bands)):
+  individual.append(0)
   for count,peak in enumerate(bands[i]):
-      thispeak = gaussBand(x, peak, strengths[i][count], stdev)
+      thispeak = (boltzmann[i]/np.sum(boltzmann))*gaussBand(x, peak, strengths[i][count], stdev)
 #      thispeak = lorentzBand(x, peak, f[count], stdev, gamma)
       composite += thispeak
+      individual[i] += thispeak
 
-fig, ax = matplotlib.pyplot.subplots()
-ax.plot(x,composite)
-matplotlib.pyplot.xlabel('$\lambda$ / nm')
-matplotlib.pyplot.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
 
-matplotlib.pyplot.show()
+fig, ax = plt.subplots(nrows=len(bands)+1,sharex=True,sharey=False)
+ax[0].plot(x,composite)
+#colourmap = plt.cm.Spectral(np.linspace(0, 1, len(bands)))
+#colourmap = plt.cm.rainbow(np.linspace(0, 1, len(bands)))
+#colourmap = plt.cm.gnuplot(np.linspace(0, 1, len(bands)))
+colourmap = plt.cm.seismic(np.linspace(0, 1, len(bands)))
+for i in range(0,len(bands)):
+  ax[i+1].plot(x,individual[i],color=colourmap[i])
+  ax[0].plot(x,individual[i],color=colourmap[i])
+plt.xlabel('$\lambda$ / nm')
+plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
+
+plt.show()
 
 ProgramFooter()
