@@ -9,17 +9,17 @@ def timestamp(s):
 # Font = "Small"
 def ProgramHeader():
   print ("###############################################################################")
-  print ("Wellington Fast Assessment of Reactions Spectroscopical Data Plot")
-  print ("__      __   _ _ ___ _   ___     ___              ___ _     _   ")
-  print ("\ \    / /__| | | __/_\ | _ \___/ __|_ __  ___ __| _ \ |___| |_ ")
-  print (" \ \/\/ / -_) | | _/ _ \|   / -_)__ \ '_ \/ -_) _|  _/ / _ \  _|")
-  print ("  \_/\_/\___|_|_|_/_/ \_\_|_\___|___/ .__/\___\__|_| |_\___/\__|")
-  print ("                                    |_|                         ")
-  print ("                                                    Version 0.01")
-  print ("      WellFAReSpecPlot Copyright (C) 2015 Matthias Lein         ")
-  print ("       This program comes with ABSOLUTELY NO WARRANTY           ")
-  print ("        This is free software, and you are welcome to           ")
-  print ("          redistribute it under certain conditions.             ")
+  print ("Wellington Fast Assessment of Reactions - Spectroscopical Data Plot")
+  print ("  __      __   _ _ ___ _   ___     ___              ___ _     _    ")
+  print ("  \ \    / /__| | | __/_\ | _ \___/ __|_ __  ___ __| _ \ |___| |_  ")
+  print ("   \ \/\/ / -_) | | _/ _ \|   / -_)__ \ '_ \/ -_) _|  _/ / _ \  _| ")
+  print ("    \_/\_/\___|_|_|_/_/ \_\_|_\___|___/ .__/\___\__|_| |_\___/\__| ")
+  print ("                                    |_|                            ")
+  print ("                                                       Version 0.01")
+  print ("         WellFAReSpecPlot Copyright (C) 2015 Matthias Lein         ")
+  print ("          This program comes with ABSOLUTELY NO WARRANTY           ")
+  print ("           This is free software, and you are welcome to           ")
+  print ("             redistribute it under certain conditions.             ")
   timestamp('Program started at: ')
   print ("###############################################################################\n")
 
@@ -210,8 +210,8 @@ names = []
 for i in range(1,len(sys.argv)):
   if os.path.isfile(str(sys.argv[i])):
     print("Reading from file {} now.".format(str(sys.argv[i])))
-    band, f, energy = extractExcitations(str(sys.argv[i]))
     names.append(str(sys.argv[i]))
+    band, f, energy = extractExcitations(str(sys.argv[i]))
     bands.append(band)
     strengths.append(f)
     energies = energies + [energy]
@@ -243,15 +243,14 @@ for i in range(1,len(bands)+1):
   print("Boltzmann factor: {:.3f}".format(boltzmann[i-1]))
   print("Contribution: {:.1f}%".format((boltzmann[i-1]/np.sum(boltzmann))*100))
   print("Peak positions at: {}".format(bands[i-1]))
-  print("Peak intensities : {}".format(strengths[i-1]))
-  print("")
+  print("Peak intensities : {}\n".format(strengths[i-1]))
 
 # Now that we know the bands, setup plot
 start=np.trunc(max(findmin(bands)-50.0,0.0))
 finish=np.trunc(findmax(bands)+50.0)
 points=int((finish-start)*2.5)
 
-print("Plot boundaries: {} nm and {} nm ({} points)".format(start, finish, points))
+print("\nPlot boundaries: {} nm and {} nm ({} points)".format(start, finish, points))
 
 x = np.linspace(start,finish,points)
 
@@ -270,6 +269,8 @@ sigstruct = 0
 for i in range(0,len(bands)):
   if (boltzmann[i]/np.sum(boltzmann)) > 0.01:
     sigstruct += 1
+
+print("\nThere are {} structures that contribute significantly (>1%)".format(sigstruct))
 
 #colourmap = plt.cm.Spectral(np.linspace(0, 1, len(bands)))
 #colourmap = plt.cm.rainbow(np.linspace(0, 1, len(bands)))
