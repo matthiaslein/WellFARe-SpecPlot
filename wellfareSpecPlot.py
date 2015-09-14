@@ -170,13 +170,15 @@ def extractExcitations(filename):
 def findmin(listoflists):
   minima = []
   for i in listoflists:
-    minima.append(min(i))
+    if i != []:
+      minima.append(min(i))
   return min(minima)
 
 def findmax(listoflists):
   maxima = []
   for i in listoflists:
-    maxima.append(max(i))
+    if i != []:
+      maxima.append(max(i))
   return max(maxima)
 
 # Information on producing spectral curves (Gaussian and Lorentzian) is adapted from:
@@ -212,6 +214,15 @@ for i in range(1,len(sys.argv)):
     print("Reading from file {} now.".format(str(sys.argv[i])))
     band, f, energy = extractExcitations(str(sys.argv[i]))
     names.append(str(sys.argv[i]))
+    if band == [] or f == []:
+      ProgramError("No spectral data found in this file!")
+      ProgramAbort()
+    if energy == []:
+      ProgramError("No thermodynamic data (Gibbs free energy) found in this file!")
+      ProgramAbort()
+    if len(band) != len (f):
+      ProgramError("Inconsistency with # of bands and # of osc strengths in this file!")
+      ProgramAbort()
     bands.append(band)
     strengths.append(f)
     energies = energies + [energy]
