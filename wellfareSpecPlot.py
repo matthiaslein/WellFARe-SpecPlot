@@ -212,6 +212,7 @@ names = []
 for i in range(1,len(sys.argv)):
   if os.path.isfile(str(sys.argv[i])):
     print("Reading from file {} now.".format(str(sys.argv[i])))
+    band, f, energy = extractExcitations(str(sys.argv[i]))
     names.append(str(sys.argv[i]))
     if band == [] or f == []:
       ProgramError("No spectral data found in this file!")
@@ -222,7 +223,6 @@ for i in range(1,len(sys.argv)):
     if len(band) != len (f):
       ProgramError("Inconsistency with # of bands and # of osc strengths in this file!")
       ProgramAbort()
-    band, f, energy = extractExcitations(str(sys.argv[i]))
     bands.append(band)
     strengths.append(f)
     energies = energies + [energy]
