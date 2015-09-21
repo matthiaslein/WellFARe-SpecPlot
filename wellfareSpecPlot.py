@@ -326,12 +326,14 @@ ax[0].plot(x,composite)
 for count, i in enumerate(np.argsort(energies)):
   if (boltzmann[i]/np.sum(boltzmann)) > 0.01:
     ax[count+1].plot(x,individual[i],color=colourmap[i])
+    # Ensure that the y-axis starts at zero
+    ax[count+1].axis(ymin=0.0)
     ax[count+1].text(0.8, 0.5,'{}\n Contribution: {:.1f}%'.format(names[i],(boltzmann[i]/np.sum(boltzmann))*100),horizontalalignment='center', verticalalignment='center', transform = ax[count+1].transAxes)
     #print("Strongest transition in structure {}: {}".format(i,max(strengths[i])))
     stretchfactor=1/max(strengths[i])
     for j in range(0,len(bands[0])):
-      # Print vertical line spectrum scaled by the size of the y-axis (ax[count+1].get_ylim()[1])
-      ax[count+1].vlines(bands[i][j], 0.0, ax[count+1].get_ylim()[1]*stretchfactor*strengths[i][j])
+      # Print vertical line spectrum scaled to 90% of the size of the y-axis (ax[count+1].get_ylim()[1])
+      ax[count+1].vlines(bands[i][j], 0.0, 0.9*ax[count+1].get_ylim()[1]*stretchfactor*strengths[i][j])
       #print("Plotting band of molecule {} at: {}".format(i,bands[i][j]))
   ax[0].plot(x,individual[i],color=colourmap[i],linestyle='--')
 ax[0].text(0.8, 0.5,'All contributions', horizontalalignment='center', verticalalignment='center', transform = ax[0].transAxes)
@@ -347,29 +349,43 @@ print("There are {} contributing structures with ECD data".format(ecd_sigstruct)
 
 # Setup for composite plot and each significantly contr. structure for ECD
 if ecd_sigstruct == 1:
+  # find out which structure it is that is contributing
+  for count, i in enumerate(np.argsort(energies)):
+    if (boltzmann[i]/np.sum(boltzmann)) > 0.01 and max(np.absolute(ecds[i])) > 0.0:
+      ecd_struct=i
   fig, ay = plt.subplots(nrows=ecd_sigstruct,sharex=True,sharey=False)
   ay.plot(x,composite_ecd)
+  ay.axhline()
+  ay.text(0.8, 0.8,'{}\n Contribution: {:.1f}%'.format(names[ecd_struct],(boltzmann[ecd_struct]/np.sum(boltzmann))*100),horizontalalignment='center', verticalalignment='center', transform = ay.transAxes)
+  stretchfactor=1/max(ecds[ecd_struct])
+  for j in range(0,len(bands[ecd_struct])):
+    ay.vlines(bands[ecd_struct][j], 0.0, ay.get_ylim()[1]*stretchfactor*ecds[ecd_struct][j])
   plt.xlabel('$\lambda$ / nm')
-  plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
+  plt.ylabel('intensity / arbitrary units')
 
 # Go through all energies in order, but index in variable "count" for ECD
 if ecd_sigstruct > 1:
   fig, ay = plt.subplots(nrows=ecd_sigstruct+1,sharex=True,sharey=False)
   ay[0].plot(x,composite_ecd)
+  ay[0].axhline()
   for count, i in enumerate(np.argsort(energies)):
     if (boltzmann[i]/np.sum(boltzmann)) > 0.01 and max(np.absolute(ecds[i])) > 0.0:
       ay[count+1].plot(x,individual_ecd[i],color=colourmap[i])
-      ay[count+1].text(0.8, 0.5,'{}\n Contribution: {:.1f}%'.format(names[i],(boltzmann[i]/np.sum(boltzmann))*100),horizontalalignment='center', verticalalignment='center', transform = ax[count+1].transAxes)
+      ay[count+1].axhline()
+      ay[count+1].text(0.8, 0.8,'{}\n Contribution: {:.1f}%'.format(names[i],(boltzmann[i]/np.sum(boltzmann))*100),horizontalalignment='center', verticalalignment='center', transform = ay[count+1].transAxes)
       #print("Strongest transition in structure {}: {}".format(i,max(strengths[i])))
       stretchfactor=1/max(ecds[i])
       for j in range(0,len(bands[0])):
-        # Print vertical line spectrum scaled by the size of the y-axis (ax[count+1].get_ylim()[1])
-        ay[count+1].vlines(bands[i][j], 0.0, ay[count+1].get_ylim()[1]*stretchfactor*ecds[i][j])
+        # Print vertical line spectrum scaled to 90% of the size of the y-axis (ax[count+1].get_ylim()[1])
+        if ecds[i][j] > 0.0:
+          ay[count+1].vlines(bands[i][j], 0.0, 0.9*ay[count+1].get_ylim()[1]*stretchfactor*ecds[i][j])
+        if ecds[i][j] < 0.0:
+          ay[count+1].vlines(bands[i][j], 0.0, -0.9*ay[count+1].get_ylim()[0]*stretchfactor*ecds[i][j])
         #print("Plotting band of molecule {} at: {}".format(i,bands[i][j]))
     ay[0].plot(x,individual[i],color=colourmap[i],linestyle='--')
-  ay[0].text(0.8, 0.5,'All contributions', horizontalalignment='center', verticalalignment='center', transform = ay[0].transAxes)
+  ay[0].text(0.8, 0.8,'All contributions', horizontalalignment='center', verticalalignment='center', transform = ay[0].transAxes)
   plt.xlabel('$\lambda$ / nm')
-  plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
+  plt.ylabel('intensity / arbitrary units')
 
 plt.show()
 
