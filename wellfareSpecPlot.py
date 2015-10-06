@@ -230,20 +230,20 @@ for i in range(1,len(sys.argv)):
   if os.path.isfile(str(sys.argv[i])):
     print("Reading from file {} now.".format(str(sys.argv[i])))
     band, f, energy, ecd = extractExcitations(str(sys.argv[i]))
-    names.append(str(sys.argv[i]))
     if band == [] or f == [] or ecd == []:
-      ProgramError("No spectral data found in this file!")
-      ProgramAbort()
-    if energy == []:
+      ProgramWarning("No spectral data found in this file!")
+    elif energy == []:
       ProgramError("No thermodynamic data (Gibbs free energy) found in this file!")
       ProgramAbort()
-    if len(band) != len (f):
+    elif len(band) != len (f):
       ProgramError("Inconsistency with # of bands and # of osc strengths in this file!")
       ProgramAbort()
-    bands.append(band)
-    strengths.append(f)
-    ecds.append(ecd)
-    energies = energies + [energy]
+    else:
+      names.append(str(sys.argv[i]))
+      bands.append(band)
+      strengths.append(f)
+      ecds.append(ecd)
+      energies = energies + [energy]
   else:
     ProgramError("Something wrong with the file given as command line argument!")
     ProgramAbort()
@@ -271,9 +271,10 @@ for i in range(1,len(bands)+1):
   print("Relative Gibbs energy: {:.3f}".format(energies[i-1]))
   print("Boltzmann factor: {:.3f}".format(boltzmann[i-1]))
   print("Contribution: {:.1f}%".format((boltzmann[i-1]/np.sum(boltzmann))*100))
-  print("Peak positions at: {}".format(bands[i-1]))
-  print("Peak intensities : {}".format(strengths[i-1]))
-  print("ECD Rotatory Strengths: {}\n".format(ecds[i-1]))
+  print("  nm     UV-Vis     ECD")
+  for j in range(0,len(bands[i-1])):
+    print(" {:.1f}  {:7.5f} {:-10.5f}".format(bands[i-1][j], strengths[i-1][j], ecds[i-1][j]))
+  print("")
 
 # Find out how many structures actually contribute significantly (>1%)
 sigstruct = 0
