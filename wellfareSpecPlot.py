@@ -14,7 +14,7 @@ def ProgramHeader():
   print ("  \ \    / /__| | | __/_\ | _ \___/ __|_ __  ___ __| _ \ |___| |_  ")
   print ("   \ \/\/ / -_) | | _/ _ \|   / -_)__ \ '_ \/ -_) _|  _/ / _ \  _| ")
   print ("    \_/\_/\___|_|_|_/_/ \_\_|_\___|___/ .__/\___\__|_| |_\___/\__| ")
-  print ("                                    |_|                            ")
+  print ("                                      |_|                          ")
   print ("                                                       Version 0.01")
   print ("         WellFAReSpecPlot Copyright (C) 2015 Matthias Lein         ")
   print ("          This program comes with ABSOLUTELY NO WARRANTY           ")
@@ -101,9 +101,13 @@ def extractExcitations(filename):
   # Determine which QM program we're dealing with
   for line in f:
     if line.find("Entering Gaussian System, Link 0=g09") != -1:
+      if args.verbosity >=3:
+        print("{} is a Gaussian file".format(filename))
       program = "g09"
       break
     elif line.find("* O   R   C   A *") != -1:
+      if args.verbosity >=3:
+        print("{} in an Orca file".format(filename))
       program = "orca"
       break
   f.close()
@@ -213,12 +217,13 @@ def lorentzBand(x, band, strength, stdev, gamma):
 # Start of the program
 import argparse
 
-parser = argparse.ArgumentParser(description="WellFAReSpecPlot", epilog="recogised filetypes: g09, orca")
+parser = argparse.ArgumentParser(description="WellFAReSpecPlot", epilog="recognised filetypes: g09, orca")
 # Wellington Fast Assessment of Reactions - Spectroscopical Data Plot
 parser.add_argument("files", metavar='file', help="input file(s) with spectroscopic data", nargs='+', default="reactant.log")
 parser.add_argument("-c", "--cutoff", help="cutoff value for inclusion into plots; default: 0.01 (= 1%)", default=0.01, type=float)
 parser.add_argument("-u", "--upper", help="highest frequency (in nm) for the plot", type=float)
 parser.add_argument("-l", "--lower", help="lowest frequency (in nm) for the plot", type=float)
+parser.add_argument("--nolines", help="prevent printing of line spectra underneath main plots", action='store_true')
 parser.add_argument("-p", "--points", help="number of points to plot", type=float)
 parser.add_argument("-v", "--verbosity", help="increase output verbosity", type=int, choices=[1, 2, 3], default=1)
 
@@ -241,11 +246,11 @@ names = []
 # Excitation energies in nm
 # Oscillator strengths (dimensionless)
 for i in range(1,len(args.files)):
-  if os.path.isfile(str(args.files[i])):
+  if os.path.isfile(args.files[i]):
     if args.verbosity >=2:
-      print("Reading from file {} now.".format(str(args.files[i])))
-    band, f, energy, ecd = extractExcitations(str(args.files[i]))
-    names.append(str(args.files[i]))
+      print("Reading from file {} now.".format(args.files[i]))
+    band, f, energy, ecd = extractExcitations(args.files[i])
+    names.append(args.files[i])
     if band == [] or f == [] or ecd == []:
       ProgramWarning("No spectral data found in this file!")
     elif energy == []:
@@ -255,13 +260,13 @@ for i in range(1,len(args.files)):
       ProgramError("Inconsistency with # of bands and # of osc strengths in this file!")
       ProgramAbort()
     else:
-      names.append(str(sys.argv[i]))
+      names.append(args.files[i])
       bands.append(band)
       strengths.append(f)
       ecds.append(ecd)
       energies = energies + [energy]
   else:
-    ProgramError("Something wrong with the file given as command line argument!")
+    ProgramError("Something wrong with the file {}".format(args.files[i]))
     ProgramAbort()
 
 # Convert absolute energies into relative energies
@@ -288,9 +293,10 @@ if args.verbosity >=2:
     print("Relative Gibbs energy: {:.3f}".format(energies[i-1]))
     print("Boltzmann factor: {:.3f}".format(boltzmann[i-1]))
     print("Contribution: {:.1f}%".format((boltzmann[i-1]/np.sum(boltzmann))*100))
-    print("  nm     UV-Vis     ECD")
-    for j in range(0,len(bands[i-1])):
-      print(" {:.1f}  {:7.5f} {:-10.5f}".format(bands[i-1][j], strengths[i-1][j], ecds[i-1][j]))
+    if args.verbosity >=3:
+      print("  nm     UV-Vis     ECD")
+      for j in range(0,len(bands[i-1])):
+        print(" {:.1f}  {:7.5f} {:-10.5f}".format(bands[i-1][j], strengths[i-1][j], ecds[i-1][j]))
     print("")
 
 # Find out how many structures actually contribute significantly (>1%)
@@ -360,9 +366,10 @@ for count, i in enumerate(np.argsort(energies)):
     ax[count+1].text(0.8, 0.5,'{}\n Contribution: {:.1f}%'.format(names[i],(boltzmann[i]/np.sum(boltzmann))*100),horizontalalignment='center', verticalalignment='center', transform = ax[count+1].transAxes)
     #print("Strongest transition in structure {}: {}".format(i,max(strengths[i])))
     stretchfactor=1/max(strengths[i])
-    for j in range(0,len(bands[0])):
-      # Print vertical line spectrum scaled to 90% of the size of the y-axis (ax[count+1].get_ylim()[1])
-      ax[count+1].vlines(bands[i][j], 0.0, 0.9*ax[count+1].get_ylim()[1]*stretchfactor*strengths[i][j])
+    if args.nolines != True:
+      for j in range(0,len(bands[0])):
+        # Print vertical line spectrum scaled to 90% of the size of the y-axis (ax[count+1].get_ylim()[1])
+        ax[count+1].vlines(bands[i][j], 0.0, 0.9*ax[count+1].get_ylim()[1]*stretchfactor*strengths[i][j])
       #print("Plotting band of molecule {} at: {}".format(i,bands[i][j]))
   ax[0].plot(x,individual[i],color=colourmap[i],linestyle='--')
 ax[0].text(0.8, 0.5,'All contributions', horizontalalignment='center', verticalalignment='center', transform = ax[0].transAxes)
@@ -388,8 +395,9 @@ if ecd_sigstruct == 1:
   ay.axhline()
   ay.text(0.8, 0.8,'{}\n Contribution: {:.1f}%'.format(names[ecd_struct],(boltzmann[ecd_struct]/np.sum(boltzmann))*100),horizontalalignment='center', verticalalignment='center', transform = ay.transAxes)
   stretchfactor=1/max(ecds[ecd_struct])
-  for j in range(0,len(bands[ecd_struct])):
-    ay.vlines(bands[ecd_struct][j], 0.0, ay.get_ylim()[1]*stretchfactor*ecds[ecd_struct][j])
+  if args.nolines != True:
+    for j in range(0,len(bands[ecd_struct])):
+      ay.vlines(bands[ecd_struct][j], 0.0, ay.get_ylim()[1]*stretchfactor*ecds[ecd_struct][j])
   plt.xlabel('$\lambda$ / nm')
   plt.ylabel('intensity / arbitrary units')
 
@@ -406,12 +414,13 @@ if ecd_sigstruct > 1:
       ay[countpanels+1].text(0.8, 0.8,'{}\n Contribution: {:.1f}%'.format(names[i],(boltzmann[i]/np.sum(boltzmann))*100),horizontalalignment='center', verticalalignment='center', transform = ay[countpanels+1].transAxes)
       #print("Strongest transition in structure {}: {}".format(i,max(strengths[i])))
       stretchfactor=1/max(ecds[i])
-      for j in range(0,len(bands[0])):
-        # Print vertical line spectrum scaled to 90% of the size of the y-axis (ax[count+1].get_ylim()[1])
-        if ecds[i][j] > 0.0:
-          ay[countpanels+1].vlines(bands[i][j], 0.0, 0.9*ay[countpanels+1].get_ylim()[1]*stretchfactor*ecds[i][j])
-        if ecds[i][j] < 0.0:
-          ay[countpanels+1].vlines(bands[i][j], 0.0, -0.9*ay[countpanels+1].get_ylim()[0]*stretchfactor*ecds[i][j])
+      if args.nolines != True:
+        for j in range(0,len(bands[0])):
+          # Print vertical line spectrum scaled to 90% of the size of the y-axis (ax[count+1].get_ylim()[1])
+          if ecds[i][j] > 0.0:
+            ay[countpanels+1].vlines(bands[i][j], 0.0, 0.9*ay[countpanels+1].get_ylim()[1]*stretchfactor*ecds[i][j])
+          if ecds[i][j] < 0.0:
+            ay[countpanels+1].vlines(bands[i][j], 0.0, -0.9*ay[countpanels+1].get_ylim()[0]*stretchfactor*ecds[i][j])
         #print("Plotting band of molecule {} at: {}".format(i,bands[i][j]))
       countpanels += 1
     ay[0].plot(x,individual[i],color=colourmap[i],linestyle='--')
