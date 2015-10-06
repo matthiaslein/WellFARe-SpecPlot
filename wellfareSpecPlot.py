@@ -211,9 +211,23 @@ def lorentzBand(x, band, strength, stdev, gamma):
     return bandshape
 
 # Start of the program
-ProgramHeader()
+import argparse
 
-if len(sys.argv) < 2:
+parser = argparse.ArgumentParser(description="WellFAReSpecPlot", epilog="recogised filetypes: g09, orca")
+# Wellington Fast Assessment of Reactions - Spectroscopical Data Plot
+parser.add_argument("files", metavar='file', help="input file(s) with spectroscopic data", nargs='+', default="reactant.log")
+parser.add_argument("-c", "--cutoff", help="cutoff value for inclusion into plots; default: 0.01 (= 1%)", default=0.01, type=float)
+parser.add_argument("-u", "--upper", help="highest frequency (in nm) for the plot", type=float)
+parser.add_argument("-l", "--lower", help="lowest frequency (in nm) for the plot", type=float)
+parser.add_argument("-p", "--points", help="number of points to plot", type=float)
+parser.add_argument("-v", "--verbosity", help="increase output verbosity", type=int, choices=[1, 2, 3], default=1)
+
+args = parser.parse_args()
+
+if args.verbosity >=2:
+  ProgramHeader()
+
+if len(args.files) < 2:
   ProgramError("Need filename(s) as command line argument!")
   ProgramAbort()
 
@@ -226,10 +240,12 @@ names = []
 
 # Excitation energies in nm
 # Oscillator strengths (dimensionless)
-for i in range(1,len(sys.argv)):
-  if os.path.isfile(str(sys.argv[i])):
-    print("Reading from file {} now.".format(str(sys.argv[i])))
-    band, f, energy, ecd = extractExcitations(str(sys.argv[i]))
+for i in range(1,len(args.files)):
+  if os.path.isfile(str(args.files[i])):
+    if args.verbosity >=2:
+      print("Reading from file {} now.".format(str(args.files[i])))
+    band, f, energy, ecd = extractExcitations(str(args.files[i]))
+    names.append(str(args.files[i]))
     if band == [] or f == [] or ecd == []:
       ProgramWarning("No spectral data found in this file!")
     elif energy == []:
@@ -265,30 +281,42 @@ stdevs = np.full([len(energies),len(bands[0])], 3099.6)
 # For Lorentzians, gamma is half bandwidth at half peak height (nm)
 gammas = np.full([len(energies),len(bands[0])], 7.5)
 
-print("We have spectral data from {} calculations".format(len(bands)))
-for i in range(1,len(bands)+1):
-  print("Data from file no {}: {}".format(i, names[i-1]))
-  print("Relative Gibbs energy: {:.3f}".format(energies[i-1]))
-  print("Boltzmann factor: {:.3f}".format(boltzmann[i-1]))
-  print("Contribution: {:.1f}%".format((boltzmann[i-1]/np.sum(boltzmann))*100))
-  print("  nm     UV-Vis     ECD")
-  for j in range(0,len(bands[i-1])):
-    print(" {:.1f}  {:7.5f} {:-10.5f}".format(bands[i-1][j], strengths[i-1][j], ecds[i-1][j]))
-  print("")
+print("Found spectral data from {} calculations".format(len(bands)))
+if args.verbosity >=2:
+  for i in range(1,len(bands)+1):
+    print("Data from file no {}: {}".format(i, names[i-1]))
+    print("Relative Gibbs energy: {:.3f}".format(energies[i-1]))
+    print("Boltzmann factor: {:.3f}".format(boltzmann[i-1]))
+    print("Contribution: {:.1f}%".format((boltzmann[i-1]/np.sum(boltzmann))*100))
+    print("  nm     UV-Vis     ECD")
+    for j in range(0,len(bands[i-1])):
+      print(" {:.1f}  {:7.5f} {:-10.5f}".format(bands[i-1][j], strengths[i-1][j], ecds[i-1][j]))
+    print("")
 
 # Find out how many structures actually contribute significantly (>1%)
 sigstruct = 0
 for i in range(0,len(bands)):
-  if (boltzmann[i]/np.sum(boltzmann)) > 0.01:
+  if (boltzmann[i]/np.sum(boltzmann)) > args.cutoff:
     sigstruct += 1
 
-print("\nThere are {} structures that contribute significantly (>1%)".format(sigstruct))
+if args.verbosity >=2:
+  print("\nThere are {} structures that contribute significantly (>{:.1f}%)".format(sigstruct,args.cutoff*100))
 # Now that we know the bands, setup plot
-start=np.trunc(max(findmin(bands)-50.0,0.0))
-finish=np.trunc(findmax(bands)+50.0)
-points=int((finish-start)*2.5)
+if args.lower == None:
+  start=np.trunc(max(findmin(bands)-50.0,0.0))
+else:
+  start=args.lower
+if args.upper == None:
+  finish=np.trunc(findmax(bands)+50.0)
+else:
+  finish=args.upper
+if args.points == None:
+  points=int((finish-start)*2.5)
+else:
+  points=args.points
 
-print("\nPlot boundaries: {} nm and {} nm ({} points)".format(start, finish, points))
+if args.verbosity >=2:
+  print("\nPlot boundaries: {} nm and {} nm ({} points)".format(start, finish, points))
 
 x = np.linspace(start,finish,points)
 
@@ -325,7 +353,7 @@ ax[0].plot(x,composite)
 
 # Go through all energies in order, but index in variable "count" for UV-Vis
 for count, i in enumerate(np.argsort(energies)):
-  if (boltzmann[i]/np.sum(boltzmann)) > 0.01:
+  if (boltzmann[i]/np.sum(boltzmann)) > args.cutoff:
     ax[count+1].plot(x,individual[i],color=colourmap[i])
     # Ensure that the y-axis starts at zero
     ax[count+1].axis(ymin=0.0)
@@ -344,15 +372,16 @@ plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
 # Go through all significant structures again and check if they have an ECD spectrum
 ecd_sigstruct=0
 for count, i in enumerate(np.argsort(energies)):
-  if (boltzmann[i]/np.sum(boltzmann)) > 0.01 and max(np.absolute(ecds[i])) > 0.0:
+  if (boltzmann[i]/np.sum(boltzmann)) > args.cutoff and max(np.absolute(ecds[i])) > 0.0:
    ecd_sigstruct += 1
-print("There are {} contributing structures with ECD data".format(ecd_sigstruct))
+if args.verbosity >=2:
+  print("There are {} contributing structures with ECD data".format(ecd_sigstruct))
 
 # Setup for composite plot and each significantly contr. structure for ECD
 if ecd_sigstruct == 1:
   # find out which structure it is that is contributing
   for count, i in enumerate(np.argsort(energies)):
-    if (boltzmann[i]/np.sum(boltzmann)) > 0.01 and max(np.absolute(ecds[i])) > 0.0:
+    if (boltzmann[i]/np.sum(boltzmann)) > args.cutoff and max(np.absolute(ecds[i])) > 0.0:
       ecd_struct=i
   fig, ay = plt.subplots(nrows=ecd_sigstruct,sharex=True,sharey=False)
   ay.plot(x,composite_ecd)
@@ -369,20 +398,22 @@ if ecd_sigstruct > 1:
   fig, ay = plt.subplots(nrows=ecd_sigstruct+1,sharex=True,sharey=False)
   ay[0].plot(x,composite_ecd)
   ay[0].axhline()
+  countpanels = 0
   for count, i in enumerate(np.argsort(energies)):
-    if (boltzmann[i]/np.sum(boltzmann)) > 0.01 and max(np.absolute(ecds[i])) > 0.0:
-      ay[count+1].plot(x,individual_ecd[i],color=colourmap[i])
-      ay[count+1].axhline()
-      ay[count+1].text(0.8, 0.8,'{}\n Contribution: {:.1f}%'.format(names[i],(boltzmann[i]/np.sum(boltzmann))*100),horizontalalignment='center', verticalalignment='center', transform = ay[count+1].transAxes)
+    if (boltzmann[i]/np.sum(boltzmann)) > args.cutoff and max(np.absolute(ecds[i])) > 0.0:
+      ay[countpanels+1].plot(x,individual_ecd[i],color=colourmap[i])
+      ay[countpanels+1].axhline()
+      ay[countpanels+1].text(0.8, 0.8,'{}\n Contribution: {:.1f}%'.format(names[i],(boltzmann[i]/np.sum(boltzmann))*100),horizontalalignment='center', verticalalignment='center', transform = ay[countpanels+1].transAxes)
       #print("Strongest transition in structure {}: {}".format(i,max(strengths[i])))
       stretchfactor=1/max(ecds[i])
       for j in range(0,len(bands[0])):
         # Print vertical line spectrum scaled to 90% of the size of the y-axis (ax[count+1].get_ylim()[1])
         if ecds[i][j] > 0.0:
-          ay[count+1].vlines(bands[i][j], 0.0, 0.9*ay[count+1].get_ylim()[1]*stretchfactor*ecds[i][j])
+          ay[countpanels+1].vlines(bands[i][j], 0.0, 0.9*ay[countpanels+1].get_ylim()[1]*stretchfactor*ecds[i][j])
         if ecds[i][j] < 0.0:
-          ay[count+1].vlines(bands[i][j], 0.0, -0.9*ay[count+1].get_ylim()[0]*stretchfactor*ecds[i][j])
+          ay[countpanels+1].vlines(bands[i][j], 0.0, -0.9*ay[countpanels+1].get_ylim()[0]*stretchfactor*ecds[i][j])
         #print("Plotting band of molecule {} at: {}".format(i,bands[i][j]))
+      countpanels += 1
     ay[0].plot(x,individual[i],color=colourmap[i],linestyle='--')
   ay[0].text(0.8, 0.8,'All contributions', horizontalalignment='center', verticalalignment='center', transform = ay[0].transAxes)
   plt.xlabel('$\lambda$ / nm')
@@ -390,4 +421,5 @@ if ecd_sigstruct > 1:
 
 plt.show()
 
-ProgramFooter()
+if args.verbosity >=2:
+  ProgramFooter()
