@@ -252,10 +252,6 @@ args = parser.parse_args()
 if args.verbosity >= 2:
     ProgramHeader()
 
-if len(args.files) < 2:
-    ProgramError("Need filename(s) as command line argument!")
-    ProgramAbort()
-
 # Create empty lists for energies, bands and osc strengths
 energies = []
 bands = []
@@ -265,12 +261,11 @@ names = []
 
 # Excitation energies in nm
 # Oscillator strengths (dimensionless)
-for i in range(1, len(args.files)):
+for i in range(0, len(args.files)):
     if os.path.isfile(args.files[i]):
         if args.verbosity >= 2:
             print("Reading from file {} now.".format(args.files[i]))
         band, f, energy, ecd = extractExcitations(args.files[i])
-        names.append(args.files[i])
         if band == [] or f == [] or ecd == []:
             ProgramWarning("No spectral data found in this file!")
         elif energy == []:
@@ -289,15 +284,18 @@ for i in range(1, len(args.files)):
         ProgramError("Something wrong with the file {}".format(args.files[i]))
         ProgramAbort()
 
-# Convert absolute energies into relative energies
-originalmin = min(energies)
-for i in range(0, len(energies)):
-    energies[i] = (energies[i] - originalmin) * 627.5095
-
-# Determine Boltzmann factors for all components
-boltzmann = np.zeros(len(energies))
-for i in range(0, len(energies)):
-    boltzmann[i] = np.exp((-1.0 * energies[i] / (298.15 * 0.0019872041)))
+if len(args.files) > 1:
+    # Convert absolute energies into relative energies
+    originalmin = min(energies)
+    for i in range(0, len(energies)):
+        energies[i] = (energies[i] - originalmin) * 627.5095
+    # Determine Boltzmann factors for all components
+    boltzmann = np.zeros(len(energies))
+    for i in range(0, len(energies)):
+        boltzmann[i] = np.exp((-1.0 * energies[i] / (298.15 * 0.0019872041)))
+else:
+    boltzmann = np.ones(len(energies))
+    
 
 # Initialise a stdev array for the peak broadening
 # A sqrt(2) * standard deviation of 0.4 eV is 3099.6 nm. 0.1 eV is 12398.4 nm. 0.2 eV is 6199.2 nm.
@@ -321,7 +319,7 @@ else:
 print("Found spectral data from {} calculations".format(len(bands)))
 if args.verbosity >= 2:
     print("")
-    for i in range(1, len(bands) + 1):
+    for i in range(0, len(bands) + 1):
         print("Data from file no {}: {}".format(i, names[i - 1]))
         print("Relative Gibbs energy: {:.3f}".format(energies[i - 1]))
         print("Boltzmann factor: {:.3f}".format(boltzmann[i - 1]))
@@ -334,9 +332,12 @@ if args.verbosity >= 2:
 
 # Find out how many structures actually contribute significantly (>1%)
 sigstruct = 0
-for i in range(0, len(bands)):
-    if (boltzmann[i] / np.sum(boltzmann)) > args.cutoff:
-        sigstruct += 1
+if len(names) > 1:
+    for i in range(0, len(bands)):
+        if (boltzmann[i] / np.sum(boltzmann)) > args.cutoff:
+            sigstruct += 1
+else:
+    sigstruct = 1
 
 if args.verbosity >= 2:
     print("\nThere are {} structures that contribute significantly (>{:.1f}%)".format(sigstruct, args.cutoff * 100))
@@ -394,33 +395,48 @@ for i in range(0, len(bands)):
 colourmap = plt.cm.gnuplot(np.linspace(0, 1, len(bands)))
 # colourmap = plt.cm.seismic(np.linspace(0, 1, len(bands)))
 
-# Setup for composite plot and each significantly contr. structure for UV-Vis
-fig, ax = plt.subplots(nrows=sigstruct + 1, sharex=True, sharey=False)
-ax[0].plot(x, composite)
+if sigstruct == 1:
+    # Setup for one individual plot if there is only one structure
+    fig, ax = plt.subplots(nrows=1, sharex=True, sharey=False)
+    ax.plot(x, composite)
+    ax.set_title("UV-Vis")
+    stretchfactor = 1 / max(strengths[0])
+    if args.nolines != True:
+        for j in range(0, len(bands[0])):
+            ax.vlines(bands[0][j], 0.0, ax.get_ylim()[1] * stretchfactor * strengths[0][j])
+    ax.text(0.8, 0.8,
+            '{}'.format(names[0]),
+            horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
+    plt.xlabel('$\lambda$ / nm')
+    plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
+else:
+    # Setup for composite plot and each significantly contr. structure for UV-Vis
+    fig, ax = plt.subplots(nrows=sigstruct + 1, sharex=True, sharey=False)
+    ax[0].plot(x, composite)
 
-# Go through all energies in order, but index in variable "count" for UV-Vis
-ax[0].set_title("UV-Vis")
-for count, i in enumerate(np.argsort(energies)):
-    if (boltzmann[i] / np.sum(boltzmann)) > args.cutoff:
-        ax[count + 1].plot(x, individual[i], color=colourmap[i])
-        # Ensure that the y-axis starts at zero
-        ax[count + 1].axis(ymin=0.0)
-        ax[count + 1].text(0.8, 0.5,
+    # Go through all energies in order, but index in variable "count" for UV-Vis
+    ax[0].set_title("UV-Vis")
+    for count, i in enumerate(np.argsort(energies)):
+        if (boltzmann[i] / np.sum(boltzmann)) > args.cutoff:
+            ax[count + 1].plot(x, individual[i], color=colourmap[i])
+            # Ensure that the y-axis starts at zero
+            ax[count + 1].axis(ymin=0.0)
+            ax[count + 1].text(0.8, 0.5,
                            '{}\n Contribution: {:.1f}%'.format(names[i], (boltzmann[i] / np.sum(boltzmann)) * 100),
                            horizontalalignment='center', verticalalignment='center', transform=ax[count + 1].transAxes)
-        # print("Strongest transition in structure {}: {}".format(i,max(strengths[i])))
-        stretchfactor = 1 / max(strengths[i])
-        if args.nolines != True:
-            for j in range(0, len(bands[0])):
-                # Print vertical line spectrum scaled to 90% of the size of the y-axis (ax[count+1].get_ylim()[1])
-                ax[count + 1].vlines(bands[i][j], 0.0,
+            # print("Strongest transition in structure {}: {}".format(i,max(strengths[i])))
+            stretchfactor = 1 / max(strengths[i])
+            if args.nolines != True:
+                for j in range(0, len(bands[0])):
+                    # Print vertical line spectrum scaled to 90% of the size of the y-axis (ax[count+1].get_ylim()[1])
+                    ax[count + 1].vlines(bands[i][j], 0.0,
                                      0.9 * ax[count + 1].get_ylim()[1] * stretchfactor * strengths[i][j])
-                # print("Plotting band of molecule {} at: {}".format(i,bands[i][j]))
-    ax[0].plot(x, individual[i], color=colourmap[i], linestyle='--')
-ax[0].text(0.8, 0.5, 'All contributions', horizontalalignment='center', verticalalignment='center',
-           transform=ax[0].transAxes)
-plt.xlabel('$\lambda$ / nm')
-plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
+                    # print("Plotting band of molecule {} at: {}".format(i,bands[i][j]))
+        ax[0].plot(x, individual[i], color=colourmap[i], linestyle='--')
+    ax[0].text(0.8, 0.5, 'All contributions', horizontalalignment='center', verticalalignment='center',
+               transform=ax[0].transAxes)
+    plt.xlabel('$\lambda$ / nm')
+    plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
 
 # Go through all significant structures again and check if they have an ECD spectrum
 ecd_sigstruct = 0
@@ -436,21 +452,26 @@ if ecd_sigstruct == 1:
     for count, i in enumerate(np.argsort(energies)):
         if (boltzmann[i] / np.sum(boltzmann)) > args.cutoff and max(np.absolute(ecds[i])) > 0.0:
             ecd_struct = i
-    fig, ay = plt.subplots(nrows=ecd_sigstruct, sharex=True, sharey=False)
+    fig, ay = plt.subplots(nrows=1, sharex=True, sharey=False)
     ay.plot(x, composite_ecd)
     ay.axhline()
-    ay.text(0.8, 0.8,
-            '{}\n Contribution: {:.1f}%'.format(names[ecd_struct], (boltzmann[ecd_struct] / np.sum(boltzmann)) * 100),
-            horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
+    if sigstruct > 1:
+        ay.text(0.8, 0.8,
+                '{}\n Contribution: {:.1f}%'.format(names[ecd_struct], (boltzmann[ecd_struct] / np.sum(boltzmann)) * 100),
+                horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
+    else:
+        ay.text(0.8, 0.8,
+                '{}'.format(names[ecd_struct]),
+                horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
     stretchfactor = 1 / max(ecds[ecd_struct])
     if args.nolines != True:
         for j in range(0, len(bands[ecd_struct])):
             ay.vlines(bands[ecd_struct][j], 0.0, ay.get_ylim()[1] * stretchfactor * ecds[ecd_struct][j])
+    ay.set_title("ECD")
     plt.xlabel('$\lambda$ / nm')
     plt.ylabel('intensity / arbitrary units')
-
-# Go through all energies in order, but index in variable "count" for ECD
-if ecd_sigstruct > 1:
+else:
+    # Go through all energies in order, but index in variable "count" for ECD
     fig, ay = plt.subplots(nrows=ecd_sigstruct + 1, sharex=True, sharey=False)
     ay[0].plot(x, composite_ecd)
     ay[0].axhline()
