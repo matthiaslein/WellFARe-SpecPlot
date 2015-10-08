@@ -235,7 +235,7 @@ parser = argparse.ArgumentParser(description="WellFAReSpecPlot", epilog="recogni
 # Wellington Fast Assessment of Reactions - Spectroscopical Data Plot
 parser.add_argument("files", metavar='file', help="input file(s) with spectroscopic data", nargs='+',
                     default="reactant.log")
-parser.add_argument("-c", "--cutoff", help="cutoff value for inclusion into plots; default: 0.01 (= 1%)", default=0.01,
+parser.add_argument("-c", "--cutoff", help="cutoff value for inclusion into plots; default: 0.01 (= 1 %%)", default=0.01,
                     type=float)
 parser.add_argument("-u", "--upper", help="highest frequency (in nm) for the plot", type=float)
 parser.add_argument("-l", "--lower", help="lowest frequency (in nm) for the plot", type=float)
@@ -399,6 +399,7 @@ fig, ax = plt.subplots(nrows=sigstruct + 1, sharex=True, sharey=False)
 ax[0].plot(x, composite)
 
 # Go through all energies in order, but index in variable "count" for UV-Vis
+ax[0].set_title("UV-Vis")
 for count, i in enumerate(np.argsort(energies)):
     if (boltzmann[i] / np.sum(boltzmann)) > args.cutoff:
         ax[count + 1].plot(x, individual[i], color=colourmap[i])
@@ -478,6 +479,7 @@ if ecd_sigstruct > 1:
         ay[0].plot(x, individual_ecd[i], color=colourmap[i], linestyle='--')
     ay[0].text(0.8, 0.8, 'All contributions', horizontalalignment='center', verticalalignment='center',
                transform=ay[0].transAxes)
+    ay[0].set_title("ECD")
     plt.xlabel('$\lambda$ / nm')
     plt.ylabel('intensity / arbitrary units')
 
