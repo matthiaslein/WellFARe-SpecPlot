@@ -60,7 +60,7 @@ def ProgramWarning(warntext=''):
     if warntext != '':
         print("###############################################################################")
         print("# ", warntext)
-    print("###############################################################################")
+    print("###############################################################################\n")
     return
 
 
@@ -279,11 +279,9 @@ for i in range(0, len(args.files)):
         if band == [] or f == [] or ecd == []:
             ProgramWarning("No spectral data found in this file!")
         elif energy == []:
-            ProgramError("No thermodynamic data (Gibbs free energy) found in this file!")
-            ProgramAbort()
-        elif len(band) != len(f):
-            ProgramError("Inconsistency with # of bands and # of osc strengths in this file!")
-            ProgramAbort()
+            ProgramWarning("No thermodynamic data (Gibbs free energy) found in this file!")
+        elif len(band) != len(f) or len(band) != len(ecd):
+            ProgramWarning("Inconsistency with # of bands and # of osc strengths/ecd in this file!")
         else:
             names.append(args.files[i])
             bands.append(band)
