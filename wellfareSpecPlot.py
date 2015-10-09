@@ -353,6 +353,7 @@ else:
 x = np.linspace(start, finish, points)
 
 if args.verbosity >= 2:
+    print("")
     for i in range(0, len(bands) + 1):
         print("Data from file no {}: {}".format(i, names[i - 1]))
         print("Relative Gibbs energy: {:.3f}".format(energies[i - 1]))
@@ -381,8 +382,8 @@ if args.verbosity >= 2:
     else:
         if args.verbosity >= 3:
             print("No ECD specra available or no significant contribution to the spectrum")
-    if args.verbosity >= 3:
-        print("Note that the overall spectra *always* contain *all* contributions.")
+    if args.verbosity >= 3 and sigstruct > 1:
+        print("Note that the overall UV-Vis and ECD spectra *always* contain *all* contributions.")
     print("Plotting data from {} nm to {} nm ({} points)".format(start, finish, points))
     print("")
 
