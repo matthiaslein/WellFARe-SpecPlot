@@ -354,7 +354,7 @@ x = np.linspace(start, finish, points)
 
 if args.verbosity >= 2:
     print("")
-    for i in range(0, len(bands) + 1):
+    for i in range(1, len(bands) + 1):
         print("Data from file no {}: {}".format(i, names[i - 1]))
         print("Relative Gibbs energy: {:.3f}".format(energies[i - 1]))
         print("Boltzmann factor: {:.3f}".format(boltzmann[i - 1]))
