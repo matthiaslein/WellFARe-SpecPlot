@@ -106,7 +106,11 @@ def extractExcitations(filename):
     oscstr = []
     ecdstr = []
     gibbsfree = 0.0
-    f = open(filename, 'r')
+    try:
+        f = open(filename, 'r')
+    except:
+        ProgramError("Can't open file {}".format(filename))
+        ProgramAbort()
     program = "N/A"
     # Determine which QM program we're dealing with
     for line in f:
