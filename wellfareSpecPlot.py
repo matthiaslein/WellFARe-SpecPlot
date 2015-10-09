@@ -232,8 +232,9 @@ def lorentzBand(x, band, strength, stdev, gamma):
 # Start of the program
 import argparse
 
-parser = argparse.ArgumentParser(description="WellFAReSpecPlot", epilog="recognised filetypes: g09, orca")
-# Wellington Fast Assessment of Reactions - Spectroscopical Data Plot
+parser = argparse.ArgumentParser(
+    description="WellFAReSpecPlot: Wellington Fast Assessment of Reactions - Spectral Data Plot",
+    epilog="recognised filetypes: g09, orca")
 parser.add_argument("files", metavar='file', help="input file(s) with spectroscopic data", nargs='+',
                     default="reactant.log")
 parser.add_argument("-c", "--cutoff", help="cutoff value for inclusion into plots; default: 0.01 (= 1 %%)",
@@ -249,6 +250,7 @@ parser.add_argument("--flipecd", help="invert the handedness of the ECD data", a
 parser.add_argument("-f", "--function", help="type of function to fit spectrum", choices=["gaussian", "lorentzian"],
                     default="gaussian")
 parser.add_argument("-p", "--points", help="number of points to plot", type=float)
+parser.add_argument("--colourmap", help="choose colour map for the plot", type=int, choices=[0, 1, 2, 3], default=0)
 parser.add_argument("-v", "--verbosity", help="increase output verbosity", type=int, choices=[0, 1, 2, 3], default=1)
 
 args = parser.parse_args()
@@ -326,7 +328,7 @@ else:
 
 # Flip the ECD spectrum (to show the "other" enantiomer)
 if args.flipecd == True:
-    ecds = np.multiply(ecds,-1.0)
+    ecds = np.multiply(ecds, -1.0)
 
 # Go through all significant structures again and check if they have an ECD spectrum
 ecd_sigstruct = 0
@@ -366,10 +368,12 @@ if args.verbosity >= 1:
     print("Found spectral data in {} file(s)".format(len(bands)))
 if args.verbosity >= 2:
     if args.function == "lorentzian":
-        print("Using Lorentzians with a line broadening of {:.1f} nm and a HWHM of {:.1f} nm for plotting".format(args.broadening, args.hwhm))
+        print("Using Lorentzians with a line broadening of {:.1f} nm and a HWHM of {:.1f} nm for plotting".format(
+            args.broadening, args.hwhm))
     else:
         print("Using Gaussians with a line broadening of {:.1f} nm for plotting".format(args.broadening))
-    print("Plotting {} structure(s) that contribute significantly (>{:.1f}%) to the UV-Vis spectrum".format(sigstruct, args.cutoff * 100))
+    print("Plotting {} structure(s) that contribute significantly (>{:.1f}%) to the UV-Vis spectrum".format(sigstruct,
+                                                                                                            args.cutoff * 100))
     if ecd_sigstruct > 0:
         print("Plotting {} contributing structure(s) with ECD data".format(ecd_sigstruct))
         if args.flipecd == True:
@@ -412,10 +416,14 @@ for i in range(0, len(bands)):
         composite_ecd += thispeak
         individual_ecd[i] += thispeak
 
-# colourmap = plt.cm.Spectral(np.linspace(0, 1, len(bands)))
-# colourmap = plt.cm.rainbow(np.linspace(0, 1, len(bands)))
-colourmap = plt.cm.gnuplot(np.linspace(0, 1, len(bands)))
-# colourmap = plt.cm.seismic(np.linspace(0, 1, len(bands)))
+if args.colourmap == 0:
+    colourmap = plt.cm.gnuplot(np.linspace(0, 1, len(bands)))
+elif args.colourmap == 1:
+    colourmap = plt.cm.Spectral(np.linspace(0, 1, len(bands)))
+elif args.colourmap == 2:
+    colourmap = plt.cm.rainbow(np.linspace(0, 1, len(bands)))
+elif args.colourmap == 3:
+    colourmap = plt.cm.seismic(np.linspace(0, 1, len(bands)))
 
 if sigstruct == 1:
     # Setup for one individual plot if there is only one structure
@@ -428,8 +436,8 @@ if sigstruct == 1:
             ax.vlines(bands[0][j], 0.0, ax.get_ylim()[1] * stretchfactor * strengths[0][j])
     if args.nonames != True:
         ax.text(0.8, 0.8,
-            '{}'.format(names[0]),
-            horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
+                '{}'.format(names[0]),
+                horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
     plt.xlabel('$\lambda$ / nm')
     plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
 else:
@@ -446,14 +454,15 @@ else:
             ax[count + 1].axis(ymin=0.0)
             if args.nonames != True:
                 ax[count + 1].text(0.8, 0.5,
-                               '{}\n Contribution: {:.1f}%'.format(names[i], (boltzmann[i] / np.sum(boltzmann)) * 100),
-                               horizontalalignment='center', verticalalignment='center',
-                               transform=ax[count + 1].transAxes)
+                                   '{}\n Contribution: {:.1f}%'.format(names[i],
+                                                                       (boltzmann[i] / np.sum(boltzmann)) * 100),
+                                   horizontalalignment='center', verticalalignment='center',
+                                   transform=ax[count + 1].transAxes)
             else:
                 ax[count + 1].text(0.8, 0.5,
-                               'Contribution: {:.1f}%'.format((boltzmann[i] / np.sum(boltzmann)) * 100),
-                               horizontalalignment='center', verticalalignment='center',
-                               transform=ax[count + 1].transAxes)
+                                   'Contribution: {:.1f}%'.format((boltzmann[i] / np.sum(boltzmann)) * 100),
+                                   horizontalalignment='center', verticalalignment='center',
+                                   transform=ax[count + 1].transAxes)
             # print("Strongest transition in structure {}: {}".format(i,max(strengths[i])))
             stretchfactor = 1 / max(strengths[i])
             if args.nolines != True:
@@ -481,13 +490,13 @@ if ecd_sigstruct == 1:
         if args.nonames != True:
             ay.text(0.8, 0.8,
                     '{}\n Contribution: {:.1f}%'.format(names[ecd_struct],
-                        (boltzmann[ecd_struct] / np.sum(boltzmann)) * 100),
-                        horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
+                                                        (boltzmann[ecd_struct] / np.sum(boltzmann)) * 100),
+                    horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
         else:
             ay.text(0.8, 0.8,
                     'Contribution: {:.1f}%'.format(
                         (boltzmann[ecd_struct] / np.sum(boltzmann)) * 100),
-                        horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
+                    horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
     else:
         ay.text(0.8, 0.8,
                 '{}'.format(names[ecd_struct]),
@@ -515,7 +524,9 @@ elif ecd_sigstruct > 1:
                                      transform=ay[countpanels].transAxes)
             else:
                 ay[countpanels].text(0.8, 0.8, 'Contribution: {:.1f}%'.format((
-                    boltzmann[i] / np.sum(boltzmann)) * 100), horizontalalignment='center', verticalalignment='center',
+                                                                                  boltzmann[i] / np.sum(
+                                                                                      boltzmann)) * 100),
+                                     horizontalalignment='center', verticalalignment='center',
                                      transform=ay[countpanels].transAxes)
 
             if args.nolines != True:
