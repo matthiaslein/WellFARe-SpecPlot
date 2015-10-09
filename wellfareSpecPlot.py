@@ -235,17 +235,19 @@ parser = argparse.ArgumentParser(description="WellFAReSpecPlot", epilog="recogni
 # Wellington Fast Assessment of Reactions - Spectroscopical Data Plot
 parser.add_argument("files", metavar='file', help="input file(s) with spectroscopic data", nargs='+',
                     default="reactant.log")
-parser.add_argument("-c", "--cutoff", help="cutoff value for inclusion into plots; default: 0.01 (= 1 %%)", default=0.01,
+parser.add_argument("-c", "--cutoff", help="cutoff value for inclusion into plots; default: 0.01 (= 1 %%)",
+                    default=0.01,
                     type=float)
 parser.add_argument("-u", "--upper", help="highest frequency (in nm) for the plot", type=float)
 parser.add_argument("-l", "--lower", help="lowest frequency (in nm) for the plot", type=float)
-parser.add_argument("-b", "--broadening", help="line broadening (in nm)", type=float)
+parser.add_argument("-b", "--broadening", help="line broadening (in nm)", type=float, default=3099.6)
 parser.add_argument("--hwhm", help="half width at half peak height (only for Lorentzians; in nm)", type=float)
 parser.add_argument("--nolines", help="prevent printing of line spectra underneath main plots", action='store_true')
+parser.add_argument("--nonames", help="prevent printing of file names in plots", action='store_true')
 parser.add_argument("-f", "--function", help="type of function to fit spectrum", choices=["gaussian", "lorentzian"],
                     default="gaussian")
 parser.add_argument("-p", "--points", help="number of points to plot", type=float)
-parser.add_argument("-v", "--verbosity", help="increase output verbosity", type=int, choices=[1, 2, 3], default=1)
+parser.add_argument("-v", "--verbosity", help="increase output verbosity", type=int, choices=[0, 1, 2, 3], default=1)
 
 args = parser.parse_args()
 
@@ -284,7 +286,7 @@ for i in range(0, len(args.files)):
         ProgramError("Something wrong with the file {}".format(args.files[i]))
         ProgramAbort()
 
-if len(args.files) > 1:
+if len(energies) > 1:
     # Convert absolute energies into relative energies
     originalmin = min(energies)
     for i in range(0, len(energies)):
@@ -294,43 +296,27 @@ if len(args.files) > 1:
     for i in range(0, len(energies)):
         boltzmann[i] = np.exp((-1.0 * energies[i] / (298.15 * 0.0019872041)))
 else:
-    boltzmann = np.ones(len(energies))
-    
+    if len(energies) == 1:
+        boltzmann = np.ones(len(energies))
+    else:
+        ProgramError("No spectral data for plotting")
+        ProgramAbort()
+
 
 # Initialise a stdev array for the peak broadening
 # A sqrt(2) * standard deviation of 0.4 eV is 3099.6 nm. 0.1 eV is 12398.4 nm. 0.2 eV is 6199.2 nm.
-if args.broadening == None:
-    stdevs = np.full([len(energies), len(bands[0])], 3099.6)
-    if args.verbosity >= 3:
-        print("Line broadening set to 3099.6 nm")
-else:
-    stdevs = np.full([len(energies), len(bands[0])], args.broadening)
-    if args.verbosity >= 2:
-        print("Line broadening set to {:.1f} nm".format(args.broadening))
+stdevs = np.full([len(energies), len(bands[0])], args.broadening)
 
 # For Lorentzians, gamma is half bandwidth at half peak height (nm)
 if args.hwhm != None and args.function == "lorentzian":
     gammas = np.full([len(energies), len(bands[0])], args.hwhm)
-    if args.verbosity >= 2:
-        print("Half width at half maximum set to {:.1f} nm".format(args.hwhm))
 else:
     gammas = np.full([len(energies), len(bands[0])], 7.5)
 
-print("Found spectral data from {} calculations".format(len(bands)))
-if args.verbosity >= 2:
-    print("")
-    for i in range(0, len(bands) + 1):
-        print("Data from file no {}: {}".format(i, names[i - 1]))
-        print("Relative Gibbs energy: {:.3f}".format(energies[i - 1]))
-        print("Boltzmann factor: {:.3f}".format(boltzmann[i - 1]))
-        print("Contribution: {:.1f}%".format((boltzmann[i - 1] / np.sum(boltzmann)) * 100))
-        if args.verbosity >= 3:
-            print("  nm     UV-Vis     ECD")
-            for j in range(0, len(bands[i - 1])):
-                print(" {:.1f}  {:7.5f} {:-10.5f}".format(bands[i - 1][j], strengths[i - 1][j], ecds[i - 1][j]))
-        print("")
+if args.verbosity > 0:
+    print("Found spectral data from {} calculation(s)".format(len(bands)))
 
-# Find out how many structures actually contribute significantly (>1%)
+# Find out how many structures actually contribute significantly to the UV-Vis
 sigstruct = 0
 if len(names) > 1:
     for i in range(0, len(bands)):
@@ -339,8 +325,12 @@ if len(names) > 1:
 else:
     sigstruct = 1
 
-if args.verbosity >= 2:
-    print("\nThere are {} structures that contribute significantly (>{:.1f}%)".format(sigstruct, args.cutoff * 100))
+# Go through all significant structures again and check if they have an ECD spectrum
+ecd_sigstruct = 0
+for count, i in enumerate(np.argsort(energies)):
+    if (boltzmann[i] / np.sum(boltzmann)) > args.cutoff and max(np.absolute(ecds[i])) > 0.0:
+        ecd_sigstruct += 1
+
 # Now that we know the bands, setup plot
 if args.lower == None:
     start = np.trunc(max(findmin(bands) - 50.0, 0.0))
@@ -355,10 +345,34 @@ if args.points == None:
 else:
     points = args.points
 
-if args.verbosity >= 2:
-    print("\nPlot boundaries: {} nm and {} nm ({} points)".format(start, finish, points))
-
 x = np.linspace(start, finish, points)
+
+if args.verbosity >= 2:
+    if args.function == "lorentzian":
+        print("Using Lorentzians with a line broadening of {:.1f} nm and a HWHM of {:.1f} nm for plotting".format(args.broadening, args.hwhm))
+    else:
+        print("Using Gaussians with a line broadening of {:.1f} nm for plotting".format(args.broadening))
+    print("Plotting {} structure(s) that contribute significantly (>{:.1f}%) to the UV-Vis spectrum".format(sigstruct, args.cutoff * 100))
+    if ecd_sigstruct > 0:
+        print("Plotting {} contributing structure(s) with ECD data".format(ecd_sigstruct))
+    else:
+        if args.verbosity >= 3:
+            print("No ECD specra available or no significant contribution to the spectrum")
+    if args.verbosity >= 3:
+        print("Note that the overall spectra *always* contain *all* contributions.")
+    print("Plotting data from {} nm to {} nm ({} points)".format(start, finish, points))
+    print("")
+    for i in range(0, len(bands) + 1):
+        print("Data from file no {}: {}".format(i, names[i - 1]))
+        print("Relative Gibbs energy: {:.3f}".format(energies[i - 1]))
+        print("Boltzmann factor: {:.3f}".format(boltzmann[i - 1]))
+        print("Contribution: {:.1f}%".format((boltzmann[i - 1] / np.sum(boltzmann)) * 100))
+        if args.verbosity >= 3:
+            print("  nm     UV-Vis     ECD")
+            for j in range(0, len(bands[i - 1])):
+                print(" {:.1f}  {:7.5f} {:-10.5f}".format(bands[i - 1][j], strengths[i - 1][j], ecds[i - 1][j]))
+        print("")
+
 
 # Calculate composite spectrum and individual spectra for all UV-Vis data
 if args.verbosity >= 2 and args.function == "lorentzian":
@@ -404,7 +418,8 @@ if sigstruct == 1:
     if args.nolines != True:
         for j in range(0, len(bands[0])):
             ax.vlines(bands[0][j], 0.0, ax.get_ylim()[1] * stretchfactor * strengths[0][j])
-    ax.text(0.8, 0.8,
+    if args.nonames != True:
+        ax.text(0.8, 0.8,
             '{}'.format(names[0]),
             horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
     plt.xlabel('$\lambda$ / nm')
@@ -421,30 +436,29 @@ else:
             ax[count + 1].plot(x, individual[i], color=colourmap[i])
             # Ensure that the y-axis starts at zero
             ax[count + 1].axis(ymin=0.0)
-            ax[count + 1].text(0.8, 0.5,
-                           '{}\n Contribution: {:.1f}%'.format(names[i], (boltzmann[i] / np.sum(boltzmann)) * 100),
-                           horizontalalignment='center', verticalalignment='center', transform=ax[count + 1].transAxes)
+            if args.nonames != True:
+                ax[count + 1].text(0.8, 0.5,
+                               '{}\n Contribution: {:.1f}%'.format(names[i], (boltzmann[i] / np.sum(boltzmann)) * 100),
+                               horizontalalignment='center', verticalalignment='center',
+                               transform=ax[count + 1].transAxes)
+            else:
+                ax[count + 1].text(0.8, 0.5,
+                               'Contribution: {:.1f}%'.format((boltzmann[i] / np.sum(boltzmann)) * 100),
+                               horizontalalignment='center', verticalalignment='center',
+                               transform=ax[count + 1].transAxes)
             # print("Strongest transition in structure {}: {}".format(i,max(strengths[i])))
             stretchfactor = 1 / max(strengths[i])
             if args.nolines != True:
                 for j in range(0, len(bands[0])):
                     # Print vertical line spectrum scaled to 90% of the size of the y-axis (ax[count+1].get_ylim()[1])
                     ax[count + 1].vlines(bands[i][j], 0.0,
-                                     0.9 * ax[count + 1].get_ylim()[1] * stretchfactor * strengths[i][j])
+                                         0.9 * ax[count + 1].get_ylim()[1] * stretchfactor * strengths[i][j])
                     # print("Plotting band of molecule {} at: {}".format(i,bands[i][j]))
         ax[0].plot(x, individual[i], color=colourmap[i], linestyle='--')
     ax[0].text(0.8, 0.5, 'All contributions', horizontalalignment='center', verticalalignment='center',
                transform=ax[0].transAxes)
     plt.xlabel('$\lambda$ / nm')
     plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
-
-# Go through all significant structures again and check if they have an ECD spectrum
-ecd_sigstruct = 0
-for count, i in enumerate(np.argsort(energies)):
-    if (boltzmann[i] / np.sum(boltzmann)) > args.cutoff and max(np.absolute(ecds[i])) > 0.0:
-        ecd_sigstruct += 1
-if args.verbosity >= 2:
-    print("There are {} contributing structures with ECD data".format(ecd_sigstruct))
 
 # Setup for composite plot and each significantly contr. structure for ECD
 if ecd_sigstruct == 1:
@@ -456,9 +470,16 @@ if ecd_sigstruct == 1:
     ay.plot(x, composite_ecd)
     ay.axhline()
     if sigstruct > 1:
-        ay.text(0.8, 0.8,
-                '{}\n Contribution: {:.1f}%'.format(names[ecd_struct], (boltzmann[ecd_struct] / np.sum(boltzmann)) * 100),
-                horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
+        if args.nonames != True:
+            ay.text(0.8, 0.8,
+                    '{}\n Contribution: {:.1f}%'.format(names[ecd_struct],
+                        (boltzmann[ecd_struct] / np.sum(boltzmann)) * 100),
+                        horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
+        else:
+            ay.text(0.8, 0.8,
+                    'Contribution: {:.1f}%'.format(
+                        (boltzmann[ecd_struct] / np.sum(boltzmann)) * 100),
+                        horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
     else:
         ay.text(0.8, 0.8,
                 '{}'.format(names[ecd_struct]),
@@ -470,7 +491,7 @@ if ecd_sigstruct == 1:
     ay.set_title("ECD")
     plt.xlabel('$\lambda$ / nm')
     plt.ylabel('intensity / arbitrary units')
-else:
+elif ecd_sigstruct > 1:
     # Go through all energies in order, but index in variable "count" for ECD
     fig, ay = plt.subplots(nrows=ecd_sigstruct + 1, sharex=True, sharey=False)
     ay[0].plot(x, composite_ecd)
@@ -480,12 +501,17 @@ else:
         if (boltzmann[i] / np.sum(boltzmann)) > args.cutoff and max(np.absolute(ecds[i])) > 0.0:
             ay[countpanels].plot(x, individual_ecd[i], color=colourmap[i])
             ay[countpanels].axhline()
-            ay[countpanels].text(0.8, 0.8, '{}\n Contribution: {:.1f}%'.format(names[i], (
-                boltzmann[i] / np.sum(boltzmann)) * 100), horizontalalignment='center', verticalalignment='center',
-                                 transform=ay[countpanels].transAxes)
-            # print("Strongest transition in structure {}: {}".format(i,max(strengths[i])))
-            stretchfactor = 1 / max(ecds[i])
+            if args.nonames != True:
+                ay[countpanels].text(0.8, 0.8, '{}\n Contribution: {:.1f}%'.format(names[i], (
+                    boltzmann[i] / np.sum(boltzmann)) * 100), horizontalalignment='center', verticalalignment='center',
+                                     transform=ay[countpanels].transAxes)
+            else:
+                ay[countpanels].text(0.8, 0.8, 'Contribution: {:.1f}%'.format((
+                    boltzmann[i] / np.sum(boltzmann)) * 100), horizontalalignment='center', verticalalignment='center',
+                                     transform=ay[countpanels].transAxes)
+
             if args.nolines != True:
+                stretchfactor = 1 / max(ecds[i])
                 for j in range(0, len(bands[0])):
                     # Print vertical line spectrum scaled to 90% of the size of the y-axis (ax[count+1].get_ylim()[1])
                     if ecds[i][j] > 0.0:
