@@ -250,6 +250,7 @@ parser.add_argument("-b", "--broadening", help="line broadening (in nm)", type=f
 parser.add_argument("--hwhm", help="half width at half peak height (only for Lorentzians; in nm)", type=float)
 parser.add_argument("--nolines", help="prevent printing of line spectra underneath main plots", action='store_true')
 parser.add_argument("--nonames", help="prevent printing of file names in plots", action='store_true')
+parser.add_argument("-t", "--totalonly", help="only print the total plot, not individual subplots", action='store_true')
 parser.add_argument("--flipecd", help="invert the handedness of the ECD data", action='store_true')
 parser.add_argument("-f", "--function", help="type of function to fit spectrum", choices=["gaussian", "lorentzian"],
                     default="gaussian")
@@ -374,15 +375,21 @@ if args.verbosity >= 2:
             args.broadening, args.hwhm))
     else:
         print("Using Gaussians with a line broadening of {:.1f} nm for plotting".format(args.broadening))
-    print("Plotting {} structure(s) that contribute to >{:.1f}% to the UV-Vis spectrum".format(sigstruct,
-                                                                                               args.cutoff * 100))
-    if ecd_sigstruct > 0:
+    if args.totalonly == True:
+        print("Only plotting overall UV-Vis plot")
+    else:
+        print("Plotting {} structure(s) that contribute to >{:.1f}% to the UV-Vis spectrum".format(sigstruct,
+                                                                                                   args.cutoff * 100))
+    if ecd_sigstruct > 0 and args.totalonly == False:
         print("Plotting {} contributing structure(s) with ECD data".format(ecd_sigstruct))
-        if args.flipecd == True:
-            print("The ECD data has been inverted (to show the other enantiomer)")
+    if ecd_sigstruct > 0 and args.totalonly == True:
+        print("Only plotting overall ECD plot. {} structures with significant ECD data.".format(ecd_sigstruct))
     else:
         if args.verbosity >= 3:
-            print("No ECD specra available or no significant contribution to the spectrum")
+            print("No ECD spectra available or no significant contribution to the spectrum")
+    if ecd_sigstruct > 0 and args.flipecd == True:
+            print("The ECD data has been inverted (to show the other enantiomer)")
+
     if args.verbosity >= 3 and sigstruct > 1:
         print("Note that the overall UV-Vis and ECD spectra *always* contain *all* contributions.")
     print("Plotting data from {} nm to {} nm ({} points)".format(start, finish, points))
@@ -428,7 +435,7 @@ elif args.colourmap == 3:
     colourmap = plt.cm.seismic(np.linspace(0, 1, len(bands)))
 
 if sigstruct == 1:
-    # Setup for one individual plot if there is only one structure
+    # Setup for one individual plot if there is only one
     fig, ax = plt.subplots(nrows=1, sharex=True, sharey=False)
     ax.plot(x, composite)
     ax.set_title("UV-Vis")
@@ -440,6 +447,16 @@ if sigstruct == 1:
         ax.text(0.8, 0.8,
                 '{}'.format(names[0]),
                 horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
+    plt.xlabel('$\lambda$ / nm')
+    plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
+elif args.totalonly == True:
+    # Setup for one individual plot if especially requested
+    fig, ax = plt.subplots(nrows=1, sharex=True, sharey=False)
+    ax.plot(x, composite)
+    ax.set_title("UV-Vis")
+    # add individual contributing plots underneath
+    for count, i in enumerate(np.argsort(energies)):
+        ax.plot(x, individual[i], color=colourmap[i], linestyle='--')
     plt.xlabel('$\lambda$ / nm')
     plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
 else:
@@ -508,6 +525,18 @@ if ecd_sigstruct == 1:
     if args.nolines != True:
         for j in range(0, len(bands[ecd_struct])):
             ay.vlines(bands[ecd_struct][j], 0.0, ay.get_ylim()[1] * stretchfactor * ecds[ecd_struct][j])
+    ay.set_title("ECD")
+    plt.xlabel('$\lambda$ / nm')
+    plt.ylabel('intensity / arbitrary units')
+elif args.totalonly == True:
+    #setup plot
+    fig, ay = plt.subplots(nrows=1, sharex=True, sharey=False)
+    ay.plot(x, composite_ecd)
+    ay.axhline()
+    # find out which structure it is that is contributing
+    for count, i in enumerate(np.argsort(energies)):
+        if (boltzmann[i] / np.sum(boltzmann)) > args.cutoff and max(np.absolute(ecds[i])) > 0.0:
+            ay.plot(x, individual_ecd[i], color=colourmap[i], linestyle='--')
     ay.set_title("ECD")
     plt.xlabel('$\lambda$ / nm')
     plt.ylabel('intensity / arbitrary units')
