@@ -17,7 +17,7 @@ def ProgramHeader():
     print("   \ \/\/ / -_) | | _/ _ \|   / -_)__ \ '_ \/ -_) _|  _/ / _ \  _| ")
     print("    \_/\_/\___|_|_|_/_/ \_\_|_\___|___/ .__/\___\__|_| |_\___/\__| ")
     print("                                      |_|                          ")
-    print("                                                       Version 0.01")
+    print("                                                        Version 0.9")
     print("         WellFAReSpecPlot Copyright (C) 2015 Matthias Lein         ")
     print("          This program comes with ABSOLUTELY NO WARRANTY           ")
     print("           This is free software, and you are welcome to           ")
@@ -241,7 +241,7 @@ parser = argparse.ArgumentParser(
     epilog="recognised filetypes: g09, orca")
 parser.add_argument("files", metavar='file', help="input file(s) with spectroscopic data", nargs='+',
                     default="reactant.log")
-parser.add_argument("-c", "--cutoff", help="cutoff value for inclusion into plots; default: 0.01 (= 1 %%)",
+parser.add_argument("-c", "--cutoff", help="cutoff value for inclusion into plots",
                     default=0.01,
                     type=float)
 parser.add_argument("-u", "--upper", help="highest frequency (in nm) for the plot", type=float)
@@ -388,7 +388,7 @@ if args.verbosity >= 2:
         if args.verbosity >= 3:
             print("No ECD spectra available or no significant contribution to the spectrum")
     if ecd_sigstruct > 0 and args.flipecd == True:
-            print("The ECD data has been inverted (to show the other enantiomer)")
+        print("The ECD data has been inverted (to show the other enantiomer)")
 
     if args.verbosity >= 3 and sigstruct > 1:
         print("Note that the overall UV-Vis and ECD spectra *always* contain *all* contributions.")
@@ -529,7 +529,7 @@ if ecd_sigstruct == 1:
     plt.xlabel('$\lambda$ / nm')
     plt.ylabel('intensity / arbitrary units')
 elif args.totalonly == True:
-    #setup plot
+    # setup plot
     fig, ay = plt.subplots(nrows=1, sharex=True, sharey=False)
     ay.plot(x, composite_ecd)
     ay.axhline()
