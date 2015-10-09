@@ -249,8 +249,9 @@ parser.add_argument("-l", "--lower", help="lowest frequency (in nm) for the plot
 parser.add_argument("-b", "--broadening", help="line broadening (in nm)", type=float, default=3099.6)
 parser.add_argument("--hwhm", help="half width at half peak height (only for Lorentzians; in nm)", type=float,
                     default=7.5)
-parser.add_argument("--nolines", help="prevent printing of line spectra underneath main plots", action='store_true')
-parser.add_argument("--nonames", help="prevent printing of file names in plots", action='store_true')
+parser.add_argument("--nolines", help="prevent printing of line spectra underneath plots", action='store_true')
+parser.add_argument("--nonames", help="prevent printing of file names in plots", action='store_true', default=False)
+parser.add_argument("--nocontr", help="prevent printing of contributions in plots", action='store_true', default=False)
 parser.add_argument("-t", "--totalonly", help="only print the total plot, not individual subplots", action='store_true')
 parser.add_argument("--flipecd", help="invert the handedness of the ECD data", action='store_true')
 parser.add_argument("-f", "--function", help="type of function to fit spectrum", choices=["gaussian", "lorentzian"],
@@ -279,7 +280,7 @@ for i in range(0, len(args.files)):
             print("Reading from file {} now.".format(args.files[i]))
         band, f, energy, ecd = extractExcitations(args.files[i])
         if band == [] or f == [] or ecd == []:
-            ProgramWarning("No spectral data found in this file!")
+            ProgramWarning("No spectral data found in {}".format(args.files[i]))
         elif energy == []:
             ProgramWarning("No thermodynamic data (Gibbs free energy) found in this file!")
         elif len(band) != len(f) or len(band) != len(ecd):
@@ -468,15 +469,20 @@ else:
             ax[count + 1].plot(x, individual[i], color=colourmap[i])
             # Ensure that the y-axis starts at zero
             ax[count + 1].axis(ymin=0.0)
-            if args.nonames != True:
+            if args.nonames == False and args.nocontr == False:
                 ax[count + 1].text(0.8, 0.5,
                                    '{}\n Contribution: {:.1f}%'.format(names[i],
                                                                        (boltzmann[i] / np.sum(boltzmann)) * 100),
                                    horizontalalignment='center', verticalalignment='center',
                                    transform=ax[count + 1].transAxes)
-            else:
+            elif args.nonames == True and args.nocontr == False:
                 ax[count + 1].text(0.8, 0.5,
                                    'Contribution: {:.1f}%'.format((boltzmann[i] / np.sum(boltzmann)) * 100),
+                                   horizontalalignment='center', verticalalignment='center',
+                                   transform=ax[count + 1].transAxes)
+            elif args.nonames == False and args.nocontr == True:
+                ax[count + 1].text(0.8, 0.5,
+                                   '{}'.format(names[i]),
                                    horizontalalignment='center', verticalalignment='center',
                                    transform=ax[count + 1].transAxes)
             # print("Strongest transition in structure {}: {}".format(i,max(strengths[i])))
@@ -488,7 +494,8 @@ else:
                                          0.9 * ax[count + 1].get_ylim()[1] * stretchfactor * strengths[i][j])
                     # print("Plotting band of molecule {} at: {}".format(i,bands[i][j]))
         ax[0].plot(x, individual[i], color=colourmap[i], linestyle='--')
-    ax[0].text(0.8, 0.5, 'All contributions', horizontalalignment='center', verticalalignment='center',
+    if args.nocontr == False:
+        ax[0].text(0.8, 0.5, 'All contributions', horizontalalignment='center', verticalalignment='center',
                transform=ax[0].transAxes)
     plt.xlabel('$\lambda$ / nm')
     plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
@@ -503,18 +510,22 @@ if ecd_sigstruct == 1:
     ay.plot(x, composite_ecd)
     ay.axhline()
     if sigstruct > 1:
-        if args.nonames != True:
+        if args.nonames == False and args.nocontr == False:
             ay.text(0.8, 0.8,
                     '{}\n Contribution: {:.1f}%'.format(names[ecd_struct],
                                                         (boltzmann[ecd_struct] / np.sum(boltzmann)) * 100),
                     horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
-        else:
+        elif args.nonames == True and args.nocontr == False:
             ay.text(0.8, 0.8,
                     'Contribution: {:.1f}%'.format(
                         (boltzmann[ecd_struct] / np.sum(boltzmann)) * 100),
                     horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
+        elif args.nonames == False and args.nocontr == True:
+            ay.text(0.8, 0.8,
+                    '{}'.format(names[ecd_struct]),
+                    horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
     else:
-        if args.nonames != True:
+        if args.nonames == False:
             ay.text(0.8, 0.8,
                     '{}'.format(names[ecd_struct]),
                     horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
@@ -547,17 +558,20 @@ elif ecd_sigstruct > 1:
         if (boltzmann[i] / np.sum(boltzmann)) > args.cutoff and max(np.absolute(ecds[i])) > 0.0:
             ay[countpanels].plot(x, individual_ecd[i], color=colourmap[i])
             ay[countpanels].axhline()
-            if args.nonames != True:
+            if args.nonames == False and args.nocontr == False:
                 ay[countpanels].text(0.8, 0.8, '{}\n Contribution: {:.1f}%'.format(names[i], (
                     boltzmann[i] / np.sum(boltzmann)) * 100), horizontalalignment='center', verticalalignment='center',
                                      transform=ay[countpanels].transAxes)
-            else:
+            elif args.nonames == True and args.nocontr == False:
                 ay[countpanels].text(0.8, 0.8, 'Contribution: {:.1f}%'.format((
                                                                                   boltzmann[i] / np.sum(
                                                                                       boltzmann)) * 100),
                                      horizontalalignment='center', verticalalignment='center',
                                      transform=ay[countpanels].transAxes)
-
+            elif args.nonames == False and args.nocontr == True:
+                ay[countpanels].text(0.8, 0.8, '{}'.format(names[i]), horizontalalignment='center',
+                                     verticalalignment='center',
+                                     transform=ay[countpanels].transAxes)
             if args.nolines != True:
                 stretchfactor = 1 / max(ecds[i])
                 for j in range(0, len(bands[0])):
@@ -572,7 +586,8 @@ elif ecd_sigstruct > 1:
                         # print("Plotting band of molecule {} at: {}".format(i,bands[i][j]))
             countpanels += 1
         ay[0].plot(x, individual_ecd[i], color=colourmap[i], linestyle='--')
-    ay[0].text(0.8, 0.8, 'All contributions', horizontalalignment='center', verticalalignment='center',
+    if args.nocontr == False:
+        ay[0].text(0.8, 0.8, 'All contributions', horizontalalignment='center', verticalalignment='center',
                transform=ay[0].transAxes)
     ay[0].set_title("ECD")
     plt.xlabel('$\lambda$ / nm')
