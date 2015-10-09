@@ -104,6 +104,7 @@ import matplotlib.pyplot as plt
 def extractExcitations(filename):
     bands = []
     oscstr = []
+    ecdstr = []
     gibbsfree = 0.0
     f = open(filename, 'r')
     program = "N/A"
@@ -116,7 +117,7 @@ def extractExcitations(filename):
             break
         elif line.find("* O   R   C   A *") != -1:
             if args.verbosity >= 3:
-                print("{} in an Orca file".format(filename))
+                print("{} is an Orca file".format(filename))
             program = "orca"
             break
     f.close()
@@ -314,9 +315,6 @@ if args.hwhm != None and args.function == "lorentzian":
 else:
     gammas = np.full([len(energies), len(bands[0])], 7.5)
 
-if args.verbosity > 0:
-    print("Found spectral data from {} calculation(s)".format(len(bands)))
-
 # Find out how many structures actually contribute significantly to the UV-Vis
 sigstruct = 0
 if len(names) > 1:
@@ -363,6 +361,10 @@ if args.verbosity >= 2:
             for j in range(0, len(bands[i - 1])):
                 print(" {:.1f}  {:7.5f} {:-10.5f}".format(bands[i - 1][j], strengths[i - 1][j], ecds[i - 1][j]))
         print("")
+if args.verbosity >= 1:
+    print("Examined {} file(s)".format(len(args.files)))
+    print("Found spectral data in {} file(s)".format(len(bands)))
+if args.verbosity >= 2:
     if args.function == "lorentzian":
         print("Using Lorentzians with a line broadening of {:.1f} nm and a HWHM of {:.1f} nm for plotting".format(args.broadening, args.hwhm))
     else:
