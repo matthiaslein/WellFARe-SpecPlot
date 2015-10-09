@@ -109,8 +109,8 @@ def extractExcitations(filename):
     try:
         f = open(filename, 'r')
     except:
-        ProgramError("Can't open file {}".format(filename))
-        ProgramAbort()
+        ProgramWarning("Can't open file {}".format(filename))
+        return bands, oscstr, gibbsfree, ecdstr
     program = "N/A"
     # Determine which QM program we're dealing with
     for line in f:
@@ -291,8 +291,7 @@ for i in range(0, len(args.files)):
             ecds.append(ecd)
             energies = energies + [energy]
     else:
-        ProgramError("Something wrong with the file {}".format(args.files[i]))
-        ProgramAbort()
+        ProgramWarning("The file {} doesn't exist or is not a file".format(args.files[i]))
 
 if len(energies) > 1:
     # Convert absolute energies into relative energies
