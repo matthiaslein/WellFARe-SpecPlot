@@ -247,7 +247,8 @@ parser.add_argument("-c", "--cutoff", help="cutoff value for inclusion into plot
 parser.add_argument("-u", "--upper", help="highest frequency (in nm) for the plot", type=float)
 parser.add_argument("-l", "--lower", help="lowest frequency (in nm) for the plot", type=float)
 parser.add_argument("-b", "--broadening", help="line broadening (in nm)", type=float, default=3099.6)
-parser.add_argument("--hwhm", help="half width at half peak height (only for Lorentzians; in nm)", type=float)
+parser.add_argument("--hwhm", help="half width at half peak height (only for Lorentzians; in nm)", type=float,
+                    default=7.5)
 parser.add_argument("--nolines", help="prevent printing of line spectra underneath main plots", action='store_true')
 parser.add_argument("--nonames", help="prevent printing of file names in plots", action='store_true')
 parser.add_argument("-t", "--totalonly", help="only print the total plot, not individual subplots", action='store_true')
@@ -314,10 +315,8 @@ else:
 stdevs = np.full([len(energies), len(bands[0])], args.broadening)
 
 # For Lorentzians, gamma is half bandwidth at half peak height (nm)
-if args.hwhm != None and args.function == "lorentzian":
-    gammas = np.full([len(energies), len(bands[0])], args.hwhm)
-else:
-    gammas = np.full([len(energies), len(bands[0])], 7.5)
+gammas = np.full([len(energies), len(bands[0])], args.hwhm)
+
 
 # Find out how many structures actually contribute significantly to the UV-Vis
 sigstruct = 0
@@ -396,8 +395,6 @@ if args.verbosity >= 2:
     print("")
 
 # Calculate composite spectrum and individual spectra for all UV-Vis data
-if args.verbosity >= 2 and args.function == "lorentzian":
-    print("Fitting spectra with Lorentzian curves")
 individual = []
 composite = 0
 for i in range(0, len(bands)):
