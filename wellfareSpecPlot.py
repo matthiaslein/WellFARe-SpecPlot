@@ -244,6 +244,7 @@ parser.add_argument("-b", "--broadening", help="line broadening (in nm)", type=f
 parser.add_argument("--hwhm", help="half width at half peak height (only for Lorentzians; in nm)", type=float)
 parser.add_argument("--nolines", help="prevent printing of line spectra underneath main plots", action='store_true')
 parser.add_argument("--nonames", help="prevent printing of file names in plots", action='store_true')
+parser.add_argument("--flipecd", help="invert the handedness of the ECD data", action='store_true')
 parser.add_argument("-f", "--function", help="type of function to fit spectrum", choices=["gaussian", "lorentzian"],
                     default="gaussian")
 parser.add_argument("-p", "--points", help="number of points to plot", type=float)
@@ -325,6 +326,10 @@ if len(names) > 1:
 else:
     sigstruct = 1
 
+# Flip the ECD spectrum (to show the "other" enantiomer)
+if args.flipecd == True:
+    ecds = np.multiply(ecds,-1.0)
+
 # Go through all significant structures again and check if they have an ECD spectrum
 ecd_sigstruct = 0
 for count, i in enumerate(np.argsort(energies)):
@@ -348,20 +353,6 @@ else:
 x = np.linspace(start, finish, points)
 
 if args.verbosity >= 2:
-    if args.function == "lorentzian":
-        print("Using Lorentzians with a line broadening of {:.1f} nm and a HWHM of {:.1f} nm for plotting".format(args.broadening, args.hwhm))
-    else:
-        print("Using Gaussians with a line broadening of {:.1f} nm for plotting".format(args.broadening))
-    print("Plotting {} structure(s) that contribute significantly (>{:.1f}%) to the UV-Vis spectrum".format(sigstruct, args.cutoff * 100))
-    if ecd_sigstruct > 0:
-        print("Plotting {} contributing structure(s) with ECD data".format(ecd_sigstruct))
-    else:
-        if args.verbosity >= 3:
-            print("No ECD specra available or no significant contribution to the spectrum")
-    if args.verbosity >= 3:
-        print("Note that the overall spectra *always* contain *all* contributions.")
-    print("Plotting data from {} nm to {} nm ({} points)".format(start, finish, points))
-    print("")
     for i in range(0, len(bands) + 1):
         print("Data from file no {}: {}".format(i, names[i - 1]))
         print("Relative Gibbs energy: {:.3f}".format(energies[i - 1]))
@@ -372,7 +363,22 @@ if args.verbosity >= 2:
             for j in range(0, len(bands[i - 1])):
                 print(" {:.1f}  {:7.5f} {:-10.5f}".format(bands[i - 1][j], strengths[i - 1][j], ecds[i - 1][j]))
         print("")
-
+    if args.function == "lorentzian":
+        print("Using Lorentzians with a line broadening of {:.1f} nm and a HWHM of {:.1f} nm for plotting".format(args.broadening, args.hwhm))
+    else:
+        print("Using Gaussians with a line broadening of {:.1f} nm for plotting".format(args.broadening))
+    print("Plotting {} structure(s) that contribute significantly (>{:.1f}%) to the UV-Vis spectrum".format(sigstruct, args.cutoff * 100))
+    if ecd_sigstruct > 0:
+        print("Plotting {} contributing structure(s) with ECD data".format(ecd_sigstruct))
+        if args.flipecd == True:
+            print("The ECD data has been inverted (to show the other enantiomer)")
+    else:
+        if args.verbosity >= 3:
+            print("No ECD specra available or no significant contribution to the spectrum")
+    if args.verbosity >= 3:
+        print("Note that the overall spectra *always* contain *all* contributions.")
+    print("Plotting data from {} nm to {} nm ({} points)".format(start, finish, points))
+    print("")
 
 # Calculate composite spectrum and individual spectra for all UV-Vis data
 if args.verbosity >= 2 and args.function == "lorentzian":
