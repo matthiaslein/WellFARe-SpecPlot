@@ -372,8 +372,8 @@ if args.verbosity >= 2:
             args.broadening, args.hwhm))
     else:
         print("Using Gaussians with a line broadening of {:.1f} nm for plotting".format(args.broadening))
-    print("Plotting {} structure(s) that contribute significantly (>{:.1f}%) to the UV-Vis spectrum".format(sigstruct,
-                                                                                                            args.cutoff * 100))
+    print("Plotting {} structure(s) that contribute to >{:.1f}% to the UV-Vis spectrum".format(sigstruct,
+                                                                                               args.cutoff * 100))
     if ecd_sigstruct > 0:
         print("Plotting {} contributing structure(s) with ECD data".format(ecd_sigstruct))
         if args.flipecd == True:
@@ -498,9 +498,10 @@ if ecd_sigstruct == 1:
                         (boltzmann[ecd_struct] / np.sum(boltzmann)) * 100),
                     horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
     else:
-        ay.text(0.8, 0.8,
-                '{}'.format(names[ecd_struct]),
-                horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
+        if args.nonames != True:
+            ay.text(0.8, 0.8,
+                    '{}'.format(names[ecd_struct]),
+                    horizontalalignment='center', verticalalignment='center', transform=ay.transAxes)
     stretchfactor = 1 / max(ecds[ecd_struct])
     if args.nolines != True:
         for j in range(0, len(bands[ecd_struct])):
