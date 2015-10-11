@@ -241,6 +241,7 @@ parser = argparse.ArgumentParser(
     epilog="recognised filetypes: g09, orca")
 parser.add_argument("files", metavar='file', help="input file(s) with spectroscopic data", nargs='+',
                     default="reactant.log")
+parser.add_argument("-o", "--outfile", help="save plot to file instead of displaying in gui")
 parser.add_argument("-c", "--cutoff", help="cutoff value for inclusion into plots",
                     default=0.01,
                     type=float)
@@ -423,6 +424,7 @@ for i in range(0, len(bands)):
         composite_ecd += thispeak
         individual_ecd[i] += thispeak
 
+colourmap = plt.cm.gnuplot(np.linspace(0, 1, len(bands)))
 if args.colourmap == 0:
     colourmap = plt.cm.gnuplot(np.linspace(0, 1, len(bands)))
 elif args.colourmap == 1:
@@ -500,6 +502,9 @@ else:
     plt.xlabel('$\lambda$ / nm')
     plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
 
+if args.outfile != None:
+    plt.savefig("UV-"+args.outfile, bbox_inches='tight')
+
 # Setup for composite plot and each significantly contr. structure for ECD
 if ecd_sigstruct == 1:
     # find out which structure it is that is contributing
@@ -535,7 +540,7 @@ if ecd_sigstruct == 1:
             ay.vlines(bands[ecd_struct][j], 0.0, ay.get_ylim()[1] * stretchfactor * ecds[ecd_struct][j])
     ay.set_title("ECD")
     plt.xlabel('$\lambda$ / nm')
-    plt.ylabel('intensity / arbitrary units')
+    plt.ylabel('$\Delta\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
 elif args.totalonly == True:
     # setup plot
     fig, ay = plt.subplots(nrows=1, sharex=True, sharey=False)
@@ -547,7 +552,7 @@ elif args.totalonly == True:
             ay.plot(x, individual_ecd[i], color=colourmap[i], linestyle='--')
     ay.set_title("ECD")
     plt.xlabel('$\lambda$ / nm')
-    plt.ylabel('intensity / arbitrary units')
+    plt.ylabel('$\Delta\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
 elif ecd_sigstruct > 1:
     # Go through all energies in order, but index in variable "count" for ECD
     fig, ay = plt.subplots(nrows=ecd_sigstruct + 1, sharex=True, sharey=False)
@@ -591,9 +596,12 @@ elif ecd_sigstruct > 1:
                transform=ay[0].transAxes)
     ay[0].set_title("ECD")
     plt.xlabel('$\lambda$ / nm')
-    plt.ylabel('intensity / arbitrary units')
+    plt.ylabel('$\Delta\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
 
-plt.show()
+if args.outfile != None and ecd_sigstruct >= 1:
+    plt.savefig("ECD-"+args.outfile, bbox_inches='tight')
+elif args.outfile == None:
+    plt.show()
 
 if args.verbosity >= 2:
     ProgramFooter()
