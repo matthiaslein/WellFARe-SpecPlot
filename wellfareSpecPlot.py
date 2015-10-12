@@ -263,6 +263,11 @@ parser.add_argument("-v", "--verbosity", help="increase output verbosity", type=
 
 args = parser.parse_args()
 
+if args.outfile != None:
+    if args.outfile.lower().endswith(('.png', '.ps', '.eps', '.pdf')) == False:
+        ProgramError("Unsupported filetype requested")
+        ProgramAbort()
+
 if args.verbosity >= 2:
     ProgramHeader()
 
