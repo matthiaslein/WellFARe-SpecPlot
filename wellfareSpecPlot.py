@@ -1,6 +1,8 @@
 import sys
 import os.path
 import time
+import argparse
+from importlib.util import find_spec
 
 
 def timestamp(s):
@@ -46,7 +48,6 @@ def ProgramAbort():
     timestamp('Program aborted at: ')
     print("###############################################################################")
     sys.exit()
-    return
 
 
 def ProgramWarning(warntext=''):
@@ -78,26 +79,28 @@ def ProgramError(errortext=''):
     return
 
 
-# Check for numpy and matplotlib, try to exit gracefully if not found
-import imp
-
-try:
-    imp.find_module('numpy')
-    foundnp = True
-except ImportError:
-    foundnp = False
-try:
-    imp.find_module('matplotlib')
-    foundplot = True
-except ImportError:
-    foundplot = False
-if not foundnp:
-    ProgramError("Numpy is required. Exiting")
-    ProgramAbort()
-if not foundplot:
-    ProgramError("Matplotlib is required. Exiting")
+# Check for numpy, exit immediately if not available
+module_loader = find_spec('numpy')
+found = module_loader is not None
+if not found:
+    ProgramError("Module numpy is required")
     ProgramAbort()
 import numpy as np
+
+# # Check for scipy, exit immediately if not available
+# module_loader = find_spec('scipy')
+# found = module_loader is not None
+# if not found:
+#     ProgramError("Module scipy is required")
+#     ProgramAbort()
+# import scipy.optimize
+
+# Check for matplotlib, exit immediately if not available
+module_loader = find_spec('matplotlib.pyplot')
+found = module_loader is not None
+if not found:
+    ProgramError("Module matplotlib is required")
+    ProgramAbort()
 import matplotlib.pyplot as plt
 
 
@@ -234,7 +237,6 @@ def lorentzBand(x, band, strength, stdev, gamma):
 
 
 # Start of the program
-import argparse
 
 parser = argparse.ArgumentParser(
     description="WellFAReSpecPlot: Wellington Fast Assessment of Reactions - Spectral Data Plot",
@@ -503,12 +505,12 @@ else:
         ax[0].plot(x, individual[i], color=colourmap[i], linestyle='--')
     if args.nocontr == False:
         ax[0].text(0.8, 0.5, 'All contributions', horizontalalignment='center', verticalalignment='center',
-               transform=ax[0].transAxes)
+                   transform=ax[0].transAxes)
     plt.xlabel('$\lambda$ / nm')
     plt.ylabel('$\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
 
 if args.outfile != None:
-    plt.savefig("UV-"+args.outfile, bbox_inches='tight')
+    plt.savefig("UV-" + args.outfile, bbox_inches='tight')
 
 # Setup for composite plot and each significantly contr. structure for ECD
 if ecd_sigstruct == 1:
@@ -598,13 +600,13 @@ elif ecd_sigstruct > 1:
         ay[0].plot(x, individual_ecd[i], color=colourmap[i], linestyle='--')
     if args.nocontr == False:
         ay[0].text(0.8, 0.8, 'All contributions', horizontalalignment='center', verticalalignment='center',
-               transform=ay[0].transAxes)
+                   transform=ay[0].transAxes)
     ay[0].set_title("ECD")
     plt.xlabel('$\lambda$ / nm')
     plt.ylabel('$\Delta\epsilon$ / L mol$^{-1}$ cm$^{-1}$')
 
 if args.outfile != None and ecd_sigstruct >= 1:
-    plt.savefig("ECD-"+args.outfile, bbox_inches='tight')
+    plt.savefig("ECD-" + args.outfile, bbox_inches='tight')
 elif args.outfile == None:
     plt.show()
 
