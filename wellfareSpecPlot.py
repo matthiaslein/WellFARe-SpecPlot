@@ -141,7 +141,7 @@ def extractExcitations(filename):
                     readBuffer = f.__next__()
                     if readBuffer.find("Excited State") != -1:
                         excit.append(readBuffer)
-                    elif readBuffer.find("Leave Link") != -1:
+                    elif readBuffer.find("Leave Link") != -1 or readBuffer.find("SavETr") != -1 or readBuffer.find("Orbital") != -1:
                         break
         for i in excit:
             readBuffer = i.split()
@@ -390,7 +390,7 @@ if args.verbosity >= 2:
                                                                                                    args.cutoff * 100))
     if ecd_sigstruct > 0 and args.totalonly == False:
         print("Plotting {} contributing structure(s) with ECD data".format(ecd_sigstruct))
-    if ecd_sigstruct > 0 and args.totalonly == True:
+    elif ecd_sigstruct > 0 and args.totalonly == True:
         print("Only plotting overall ECD plot. {} structures with significant ECD data.".format(ecd_sigstruct))
     else:
         if args.verbosity >= 3:
