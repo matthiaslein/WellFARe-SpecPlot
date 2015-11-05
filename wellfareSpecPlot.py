@@ -618,6 +618,7 @@ if args.csv != None:
     except:
         ProgramWarning("Can't open file {} for writing".format(args.csv))
 
+    f.write("UV-Vis Data\n")
     # write top row for UV-Vis
     row = "wavelength, composite"
     for i in range(0, len(energies)):
@@ -633,15 +634,17 @@ if args.csv != None:
         row += "\n"
         f.write(row)
 
-    # print empty row to separate UV-Vis from ECD data
-    f.write("\n")
-
-    # write top row for ECD
-    row = "wavelength, composite"
-    for i in range(0, len(energies)):
-        row += ", {}".format(args.files[i])
-    row += "\n"
-    f.write(row)
+    # If there is ECD Data, print it
+    if ecd_sigstruct > 0:
+        # print empty row to separate UV-Vis from ECD data
+        f.write("\n")
+        f.write("ECD Data\n")
+        # write top row for ECD
+        row = "wavelength, composite"
+        for i in range(0, len(energies)):
+            row += ", {}".format(args.files[i])
+        row += "\n"
+        f.write(row)
 
     # now print data rows
     for i in range(0, len(x)):
