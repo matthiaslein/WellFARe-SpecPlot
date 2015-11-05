@@ -2,6 +2,7 @@ import sys
 import os.path
 import time
 import argparse
+import csv
 from importlib.util import find_spec
 
 
@@ -244,6 +245,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument("files", metavar='file', help="input file(s) with spectroscopic data", nargs='+',
                     default="reactant.log")
 parser.add_argument("-o", "--outfile", help="save plot to file instead of displaying in gui")
+parser.add_argument("--csv", help="save to file in csv format")
 parser.add_argument("-c", "--cutoff", help="cutoff value for inclusion into plots",
                     default=0.01,
                     type=float)
@@ -609,6 +611,46 @@ if args.outfile != None and ecd_sigstruct >= 1:
     plt.savefig("ECD-" + args.outfile, bbox_inches='tight')
 elif args.outfile == None:
     plt.show()
+
+if args.csv != None:
+    try:
+        f = open(args.csv, 'wt')
+    except:
+        ProgramWarning("Can't open file {} for writing".format(args.csv))
+
+    # write top row for UV-Vis
+    row = "wavelength, composite"
+    for i in range(0, len(energies)):
+        row += ", {}".format(args.files[i])
+    row += "\n"
+    f.write(row)
+
+    # now print data rows
+    for i in range(0, len(x)):
+        row = ("{:3.2f}, {:4.2f}".format(x[i], composite[i]))
+        for j in range(0, len(energies)):
+            row += ", {:4.2f}".format(individual[j][i])
+        row += "\n"
+        f.write(row)
+
+    # print empty row to separate UV-Vis from ECD data
+    f.write("\n")
+
+    # write top row for ECD
+    row = "wavelength, composite"
+    for i in range(0, len(energies)):
+        row += ", {}".format(args.files[i])
+    row += "\n"
+    f.write(row)
+
+    # now print data rows
+    for i in range(0, len(x)):
+        row = ("{:3.2f}, {: 4.2f}".format(x[i], composite_ecd[i]))
+        for j in range(0, len(energies)):
+            row += ", {: 4.2f}".format(individual_ecd[j][i])
+        row += "\n"
+        f.write(row)
+    f.close()
 
 if args.verbosity >= 2:
     ProgramFooter()
