@@ -433,6 +433,50 @@ for i in range(0, len(bands)):
         composite_ecd += thispeak
         individual_ecd[i] += thispeak
 
+# Write .csv file with UV-Vis and (if available) ECD data.
+if args.csv != None:
+    try:
+        f = open(args.csv, 'wt')
+
+        f.write("UV-Vis Data\n")
+        # write top row for UV-Vis
+        row = "wavelength, composite"
+        for i in range(0, len(energies)):
+            row += ", {}".format(args.files[i])
+        row += "\n"
+        f.write(row)
+
+        # now print data rows
+        for i in range(0, len(x)):
+            row = ("{:3.2f}, {:4.2f}".format(x[i], composite[i]))
+            for j in range(0, len(energies)):
+                row += ", {:4.2f}".format(individual[j][i])
+            row += "\n"
+            f.write(row)
+
+        # If there is ECD Data, print it
+        if ecd_sigstruct > 0:
+            # print empty row to separate UV-Vis from ECD data
+            f.write("\n")
+            f.write("ECD Data\n")
+            # write top row for ECD
+            row = "wavelength, composite"
+            for i in range(0, len(energies)):
+                row += ", {}".format(args.files[i])
+            row += "\n"
+            f.write(row)
+
+        # now print data rows
+        for i in range(0, len(x)):
+            row = ("{:3.2f}, {: 4.2f}".format(x[i], composite_ecd[i]))
+            for j in range(0, len(energies)):
+                row += ", {: 4.2f}".format(individual_ecd[j][i])
+            row += "\n"
+            f.write(row)
+        f.close()
+    except:
+        ProgramWarning("Can't open file {} for writing csv data.".format(args.csv))
+
 colourmap = plt.cm.gnuplot(np.linspace(0, 1, len(bands)))
 if args.colourmap == 0:
     colourmap = plt.cm.gnuplot(np.linspace(0, 1, len(bands)))
@@ -611,49 +655,6 @@ if args.outfile != None and ecd_sigstruct >= 1:
     plt.savefig("ECD-" + args.outfile, bbox_inches='tight')
 elif args.outfile == None:
     plt.show()
-
-if args.csv != None:
-    try:
-        f = open(args.csv, 'wt')
-    except:
-        ProgramWarning("Can't open file {} for writing".format(args.csv))
-
-    f.write("UV-Vis Data\n")
-    # write top row for UV-Vis
-    row = "wavelength, composite"
-    for i in range(0, len(energies)):
-        row += ", {}".format(args.files[i])
-    row += "\n"
-    f.write(row)
-
-    # now print data rows
-    for i in range(0, len(x)):
-        row = ("{:3.2f}, {:4.2f}".format(x[i], composite[i]))
-        for j in range(0, len(energies)):
-            row += ", {:4.2f}".format(individual[j][i])
-        row += "\n"
-        f.write(row)
-
-    # If there is ECD Data, print it
-    if ecd_sigstruct > 0:
-        # print empty row to separate UV-Vis from ECD data
-        f.write("\n")
-        f.write("ECD Data\n")
-        # write top row for ECD
-        row = "wavelength, composite"
-        for i in range(0, len(energies)):
-            row += ", {}".format(args.files[i])
-        row += "\n"
-        f.write(row)
-
-    # now print data rows
-    for i in range(0, len(x)):
-        row = ("{:3.2f}, {: 4.2f}".format(x[i], composite_ecd[i]))
-        for j in range(0, len(energies)):
-            row += ", {: 4.2f}".format(individual_ecd[j][i])
-        row += "\n"
-        f.write(row)
-    f.close()
 
 if args.verbosity >= 2:
     ProgramFooter()
